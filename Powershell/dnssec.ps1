@@ -169,7 +169,7 @@ function resign {
         #Resign the zone with the newly added key 
         Invoke-DnsServerZoneSign -ZoneName $zonename -Force
     } else {
-        if ($verbose -le 1){$zonename + " <- Zone already signed (call -do sign instead)"}
+        if ($verbose -le 1){$zonename + " <- Zone is not signed (call -do sign instead)"}
     }
 }
 
