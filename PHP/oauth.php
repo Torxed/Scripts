@@ -29,11 +29,11 @@ class oauth_client {
             $parameters[urlencode($key)] = urlencode($line);
         }
 
-        $base_string = 'GET&'.urlencode('http://api.crew.dreamhack.se/oauth/request_token').'&'.urlencode(http_build_query($query));
+        $base_string = 'GET&'.urlencode('https://api.crew.dreamhack.se/oauth/request_token').'&'.urlencode(http_build_query($query));
 
         $query['oauth_signature'] = $this->sign($base_string, $this->secret,'');
         
-        $resp = file_get_contents("http://api.crew.dreamhack.se/oauth/request_token?".http_build_query($query));
+        $resp = file_get_contents("https://api.crew.dreamhack.se/oauth/request_token?".http_build_query($query));
         $resp = json_decode($resp,true);
 
         return $resp;
@@ -56,10 +56,10 @@ class oauth_client {
         $parameters['oauth_verifier'] = urlencode($verifier);
         ksort($parameters);
 
-        $base_string = 'POST&'.urlencode('http://api.crew.dreamhack.se/oauth/access_token').'&'.urlencode(http_build_query($parameters));
+        $base_string = 'POST&'.urlencode('https://api.crew.dreamhack.se/oauth/access_token').'&'.urlencode(http_build_query($parameters));
         $query['oauth_signature'] = $this->sign($base_string, $this->secret,$this->token_secret);
         
-        $resp = $this->do_post_request("http://api.crew.dreamhack.se/oauth/access_token?".http_build_query($query),'oauth_verifier='.$verifier);
+        $resp = $this->do_post_request("https://api.crew.dreamhack.se/oauth/access_token?".http_build_query($query),'oauth_verifier='.$verifier);
         $resp = json_decode($resp,true);
 
         return $resp;
@@ -166,11 +166,11 @@ $oauth = new oauth_client();
 
 $oauth->{'set_customer_key'}("_________");
 $oauth->{'set_customer_secret'}("_________");
-$tokens = $oauth->{'request_token'}("http://127.0.0.1");
+$tokens = $oauth->{'request_token'}("https://127.0.0.1");
 
 $oauth->{'set_token_secret'}($tokens['oauth_token_secret']);
 $oauth->{'set_token'}($tokens['oauth_token']);
 
-print $oauth->{'get'}('http://api.crew.dreamhack.se/1/user/get/635');
+print $oauth->{'get'}('https://api.crew.dreamhack.se/1/user/get/635');
 
 ?>

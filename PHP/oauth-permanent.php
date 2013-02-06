@@ -28,11 +28,11 @@ class oauth_client {
             $parameters[urlencode($key)] = urlencode($line);
         }
 
-        $base_string = 'GET&'.urlencode('http://api.crew.dreamhack.se/oauth/request_token').'&'.urlencode(http_build_query($query));
+        $base_string = 'GET&'.urlencode('https://api.crew.dreamhack.se/oauth/request_token').'&'.urlencode(http_build_query($query));
 
         $query['oauth_signature'] = $this->sign($base_string, $this->secret,'');
         
-        $resp = file_get_contents("http://api.crew.dreamhack.se/oauth/request_token?".http_build_query($query));
+        $resp = file_get_contents("https://api.crew.dreamhack.se/oauth/request_token?".http_build_query($query));
         $resp = json_decode($resp,true);
 
         return $resp;
@@ -55,10 +55,10 @@ class oauth_client {
         $parameters['oauth_verifier'] = urlencode($verifier);
         ksort($parameters);
 
-        $base_string = 'POST&'.urlencode('http://api.crew.dreamhack.se/oauth/access_token').'&'.urlencode(http_build_query($parameters));
+        $base_string = 'POST&'.urlencode('https://api.crew.dreamhack.se/oauth/access_token').'&'.urlencode(http_build_query($parameters));
         $query['oauth_signature'] = $this->sign($base_string, $this->secret,$this->token_secret);
         
-        $resp = $this->do_post_request("http://api.crew.dreamhack.se/oauth/access_token?".http_build_query($query),'oauth_verifier='.$verifier);
+        $resp = $this->do_post_request("https://api.crew.dreamhack.se/oauth/access_token?".http_build_query($query),'oauth_verifier='.$verifier);
         $resp = json_decode($resp,true);
 
         return $resp;
@@ -185,7 +185,7 @@ $oauth = new oauth_client();
         file_put_contents('access_token',json_encode($access_token));
 
         // Redirect the user to the normal page, not neccerary but looks nicer
-        header('Location: http://'.$_SERVER['HTTP_HOST'].$_SERVER['SCRIPT_NAME'] ); 
+        header('Location: https://'.$_SERVER['HTTP_HOST'].$_SERVER['SCRIPT_NAME'] ); 
         die();
     }
 
@@ -194,13 +194,13 @@ $oauth = new oauth_client();
 
 // STEP 1 - Get a request_token, this is used for enabling the login page
     if (!$access_token) {
-        $request_token = $oauth->request_token('http://'.$_SERVER['HTTP_HOST'].$_SERVER['SCRIPT_NAME']);
+        $request_token = $oauth->request_token('https://'.$_SERVER['HTTP_HOST'].$_SERVER['SCRIPT_NAME']);
 
         // Save the secret (This should be done in the session or in the database!)
         file_put_contents('request_token_secret',$request_token['oauth_token_secret']);
 
         // Redirect the user to the login page
-        header("Location: http://api.crew.dreamhack.se/oauth/authorize?oauth_token=".$request_token['oauth_token']);
+        header("Location: https://api.crew.dreamhack.se/oauth/authorize?oauth_token=".$request_token['oauth_token']);
 
         die();
     }
@@ -210,7 +210,7 @@ $oauth = new oauth_client();
     $oauth->set_token($access_token['oauth_token']);
 
     // Get the desired data
-    $result = $oauth->{'get'}('http://api.crew.dreamhack.se/1/user/get/635');
+    $result = $oauth->{'get'}('https://api.crew.dreamhack.se/1/user/get/635');
 
     // If there is a problem with the current session, delete keys
     if ( isset($result['oauth_problem']) ) {
