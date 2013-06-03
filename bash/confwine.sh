@@ -1,0 +1,1 @@
+WINEPREFIX=~/.wine/ winecfg
