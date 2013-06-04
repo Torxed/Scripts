@@ -3,7 +3,7 @@ Scripts
 
 A boundle of useful scripts sorted by language first.
 
-Most noteable
+Most notable
 =============
 [ArchLinux installer script](python/archinstaller) - This will simplify installing a "default" ArchLinux setup
 
