@@ -3,6 +3,10 @@ Scripts
 
 A boundle of useful scripts sorted by language first.
 
+Most noteable
+=============
+[ArchLinux installer script](python/archinstaller) - This will simplify installing a "default" ArchLinux setup
+
 
 [Issues](https://github.com/Torxed/Scripts/issues)
 ==================================================
