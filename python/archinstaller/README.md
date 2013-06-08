@@ -1,11 +1,10 @@
 Execution:
 ========
 * Boot a live CD (and execute the following:)
-* pacman -Syu
-* pacman -S python2
-* wget [https://raw.github.com/Torxed/Scripts/master/python/archinstaller/install.py](install.py)
-* wget [https://raw.github.com/Torxed/Scripts/master/python/archinstaller/inside_install.py](inside_install.py)
-* python2 install.py
+* wget goo.gl/UVD2n
+* mv UVD2n base.sh
+* chmod +x base.sh
+* ./base.sh
 
 
 Notes:
