@@ -3,6 +3,11 @@ Scripts
 
 A boundle of useful scripts sorted by language first.
 
+Most notable
+=============
+ * [ArchLinux installer script](python/archinstaller) - This will simplify installing a "default" ArchLinux setup
+ * [Windows DNSSEC script](Powershell/dnssec.ps1) - To Sign, Resign, Unsign DNSSEC zones via PowerShell
+
 
 [Issues](https://github.com/Torxed/Scripts/issues)
 ==================================================
