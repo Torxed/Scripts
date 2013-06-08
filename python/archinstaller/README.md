@@ -1,8 +1,7 @@
 Execution:
 ========
 * Boot a live CD (and execute the following:)
-* wget goo.gl/UVD2n   (which points to [livecd.sh](livecd.sh))
-* mv UVD2n base.sh
+* wget -O base.sh goo.gl/UVD2n (which points to [livecd.sh](livecd.sh))
 * chmod +x base.sh
 * ./base.sh
 
