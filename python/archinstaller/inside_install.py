@@ -205,7 +205,7 @@ time.sleep(5)
 pacman.write('y')
 pacman.wait(' Installing GRUB binaries |')
 
-grub = run('grub-install --recheck /dev/' + sys.argv[1])
+grub = run('grub-install --recheck /dev/' + sys.argv[1][:-1])
 grub.wait(' Installing GRUB to MBR |')
 run('cp /usr/share/locale/en\@quot/LC_MESSAGES/grub.mo /boot/grub/locale/en.mo').close()
 

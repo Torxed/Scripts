@@ -195,6 +195,10 @@ else:
 partitioning.write('w')
 partitioning.close()
 
+## Temporary fix:
+HDD_TARGET = HDD_TARGET + '1' # This value should be identified depending
+                              # on the ammount of partitions chosen!
+
 filesystem = run('mkfs.ext4 /dev/' + HDD_TARGET)
 filesystem.wait(' Generating filesystem on /dev/'+HDD_TARGET+' |')
 x = run('mount /dev/' + HDD_TARGET + ' /mnt')
