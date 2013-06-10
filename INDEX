@@ -1,4 +1,4 @@
-sysExec - https://raw.github.com/Torxed/Scripts/master/python/modules/sysExec.py
-internet - https://raw.github.com/Torxed/Scripts/master/python/modules/internet.py
-options - https://raw.github.com/Torxed/Scripts/master/python/modules/options.py
-output - https://raw.github.com/Torxed/Scripts/master/python/modules/output.py
+sysExec - https://raw.github.com/Torxed/Scripts/master/python/modules/sysExec.py - run - A function to run and communicate with system commands
+internet - https://raw.github.com/Torxed/Scripts/master/python/modules/internet.py - checkInternet - A function to verify internet connectivity
+options - https://raw.github.com/Torxed/Scripts/master/python/modules/options.py - select - A function given a list() of options will return a selected option
+output - https://raw.github.com/Torxed/Scripts/master/python/modules/output.py - output - Outputs a string via stdout,output_line - A class that handles a line and can replace the beginning of the line as well as the last cahracter
