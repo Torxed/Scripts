@@ -1,7 +1,7 @@
 import sys
 
 def output(what, flush=True):
-  sys.stdout.write(what)
+	sys.stdout.write(what)
 	if flush:
 		sys.stdout.flush()
 
