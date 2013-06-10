@@ -1,6 +1,8 @@
 import sys, time, os, getopt
 from subprocess import PIPE, Popen, STDOUT
 from shutil import copy2 as copy
+# Get module.py from https://raw.github.com/Torxed/Scripts/blob/master/python/module.py
+from module import Import
 
 if os.geteuid() >  0:
 	sys.stdout.write(" ![ERROR] Must be root to run this script\n")
@@ -11,104 +13,16 @@ opts, args = getopt.getopt(sys.argv[1:],"x",["no-internet"])
 for key, val in opts:
 	params[key] = val
 
-def output(what, flush=True):
-	sys.stdout.write(what)
-	if flush:
-		sys.stdout.flush()
+output_module = Import('output')
+output = output_module.output
+output_line = output_module.output_line
 
-class output_line():
-	def __init__(self, starter=''):
-		self.len = 0
-		self.line = starter
-		if self.line != '':
-			output(self.line)
+systemExecution_module = Impot('sysExec')
+run = systemExecution_module.run
 
-	def add(self, what, flush=True):
-		self.line += what
-		output(what, flush)
+internet_module = Import('internet')
+checkInternet = internet_module.checkInternet
 
-	def beginning(self, what, linebreak=True, flush=True):
-		output('\b' * len(self.line), False)
-		self.line = what + self.line
-		if linebreak:
-			self.line += '\n'
-		output(self.line)
-
-	def replace(self, what, num=1):
-		output('\b' * num, False)
-		self.line = self.line[:0-num] + what
-		output(what)
-
-class run():
-	def __init__(self, cmd):
-		self.cmd = cmd
-		self.stdout = None
-		self.stdin = None
-		self.x = None
-		self.run()
-
-	def run(self):
-		self.x = Popen(self.cmd, shell=True, stdout=PIPE, stderr=STDOUT, stdin=PIPE)
-		self.stdout, self.stdin = self.x.stdout, self.x.stdin
-
-	def wait(self, text):
-		i = 0
-		self.output = output_line(text)
-		graphics = ['/', '-', '\\', '|']
-		while self.x.poll() == None:
-			self.output.replace(graphics[i%len(graphics)-1])
-			i += 1
-			time.sleep(0.2)
-
-		self.output.replace(' ')
-		if self.poll() in (0, '0'):
-			self.output.beginning(' [OK] ')
-			self.close()
-			return True
-		else:
-			self.output.beginning(' ![Error] ')
-			self.close()
-			return False
-
-	def write(self, what, enter=True):
-		if enter:
-			if len(what) <= 0 or not what[-1] == '\n':
-				what += '\n'
-		self.stdin.write(what)
-
-	def poll(self):
-		return self.x.poll()
-
-	def getline(self):
-		while True:
-			line = self.stdout.readline()
-			if len(line) <= 0: break
-			yield line
-
-	def getlines(self):
-		return self.stdout.readlines()
-
-	def close(self):
-		self.stdout.close()
-		self.stdin.close()
-
-def checkInternet():
-	x = output_line('Checking for a internet connection ')
-	internet = run('ping -c 2 www.google.com')
-	for line in internet.getline():
-		x.add('.')
-		if '0% packet loss' in line and not '100% packet loss' in line:
-			internet.close()
-			x.beginning(' [OK] ')
-			del x
-			return True
-	try:
-		internet.close()
-	except:
-		pass
-	x.beginning(' ![ERROR] ')
-	del x
-	return False
 
 def listHDDs():
 	## TODO: Show the device name
