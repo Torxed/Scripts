@@ -2,7 +2,7 @@ import time
 from subprocess import PIPE, Popen, STDOUT
 
 class run():
-  def __init__(self, cmd):
+	def __init__(self, cmd):
 		self.cmd = cmd
 		self.stdout = None
 		self.stdin = None
