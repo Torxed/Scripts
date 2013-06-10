@@ -8,6 +8,9 @@ pacman -Syu --ignore filesystem,bash
 pacman -S bash
 pacman -Su
 pacman -S python2
+# module.py is a module import library that dynamicly fetches required modules.
+# It fetches output, system-executions modules etc needed in install.py.
+wget https://raw.github.com/Torxed/Scripts/master/python/module.py
 wget https://raw.github.com/Torxed/Scripts/master/python/archinstaller/install.py
 wget https://raw.github.com/Torxed/Scripts/master/python/archinstaller/inside_install.py
 python2 install.py
