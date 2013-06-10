@@ -10,8 +10,15 @@ def download(url):
 def Import(name):
 	module = True
 	module_file = None
-	if not isfile(absname):
-		for line in download('https://raw.github.com/Torxed/Scripts/master/INDEX').split('\n'):
+	if not isfile(name + '.py'):
+		index = download('https://raw.github.com/Torxed/Scripts/master/INDEX')
+		if not Index:
+			if isfile('INDEX'):
+				with open('INDEX', 'rb') as INDEX:
+					index = INDEX.read()
+			else:
+				return None
+		for line in index.split('\n'):
 			if len(line) <= 0 or line[0] == '#': continue
 		
 			module_name, module_link = line.split(' - ',1)
@@ -27,6 +34,8 @@ def Import(name):
 				if name in index_functions:
 					module = False
 				break
+	else:
+		module_file = name + '.py'
 			
 	if module_file == None or not isfile(module_file):
 		return None
