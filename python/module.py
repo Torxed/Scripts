@@ -9,7 +9,7 @@ def download(url):
 def Import(name):
 	absname = name+'.py'
 	if not isfile(absname):
-		if not isfile('modules.index')
+		if not isfile('modules.index'):
 			with open('modules.index', 'wb') as fh:
 				fh.write(download('https://raw.github.com/Torxed/Scripts/master/INDEX'))
 		with open('modules.index', 'rb') as fh:
