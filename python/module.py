@@ -12,7 +12,7 @@ def Import(name):
 	module_file = None
 	if not isfile(name + '.py'):
 		index = download('https://raw.github.com/Torxed/Scripts/master/INDEX')
-		if not Index:
+		if not index:
 			if isfile('INDEX'):
 				with open('INDEX', 'rb') as INDEX:
 					index = INDEX.read()
