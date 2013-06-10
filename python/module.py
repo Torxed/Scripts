@@ -35,3 +35,20 @@ def Import(name):
 		return __import__(module_file)
 	else:
 		return __import__(module_file).name
+
+if __name__ == '__main__':
+	import sys
+	sys.stdout.write('Module                   |  Functions\n')
+	sys.stdout.flush()
+	for line in download('https://raw.github.com/Torxed/Scripts/master/INDEX').split('\n'):
+		if len(line) <= 0 or line[0] == '#': continue
+		module_name, module_link = line.split(' - ',1)
+		sys.stdout.write(module_name + (' '*(25-len(module_name))) + '|  ')
+		if ' - ' in module_link:
+			index_functions = module_link.split(' - ',1).split(',')
+			sys.stdout.write(str(index_functions))
+		else:
+			sys.stdout.write('    ?')
+
+		sys.stdout.write('\n')
+		sys.stdout.flush()
