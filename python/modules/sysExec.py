@@ -1,6 +1,8 @@
 import time
 from subprocess import PIPE, Popen, STDOUT
 
+output_line = Import('output_line')
+
 class run():
 	def __init__(self, cmd):
 		self.cmd = cmd
