@@ -30,7 +30,7 @@ def Import(name):
 				
 			if name in module_name or name in index_functions:
 				module_file = module_name + '.py'
-				with open(module_name, 'wb') as fh_module:
+				with open(module_file, 'wb') as fh_module:
 					fh_module.write(download(module_link.strip()))
 				if name in index_functions:
 					module = False
