@@ -23,7 +23,7 @@ def Import(name):
 		
 			module_name, module_link = line.split(' - ',1)
 			if ' - ' in module_link:
-				index_functions = module_link.split(' - ',1).split(',')
+				module_link, index_functions = module_link.split(' - ',1).split(',')
 			else:
 				index_functions = []
 				
