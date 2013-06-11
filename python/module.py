@@ -32,10 +32,18 @@ def Import(name):
 			module_name, module_link = line.split(' - ',1)
 			if ' - ' in module_link:
 				module_link, index_functions = module_link.split(' - ',1)
+				tmp = {}
 				index_functions = index_functions.split(',')
+				for func in index_functions:
+					if ' - ' in func:
+						key, val = func.split(' - ',1)
+					else:
+						key, val = func, ''
+					tmp[key] = val
+				index_functions = tmp
 				sys.stdout.write(str(index_functions)+'\n')
 			else:
-				index_functions = []
+				index_functions = {}
 				
 			if name in module_name or name in index_functions:
 				if name in module_name:
