@@ -54,7 +54,7 @@ def Import(name):
 				module_file = module_name
 				with open(module_file + '.py', 'wb') as fh_module:
 					fh_module.write(download(module_link.strip()))
-				if name in index_functions:
+				if name in index_functions and name not in module_name:
 					module = False
 				break
 	else:
