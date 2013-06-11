@@ -21,6 +21,7 @@ for key, val in opts:
 if not '--no-internet' in params:
 	checkInternet = Import('checkInternet')
 output_module = Import('output')
+print output_module
 output = output_module.output
 output_line = output_module.output_line
 run = Impot('run')
