@@ -1,5 +1,6 @@
 import time
 from subprocess import PIPE, Popen, STDOUT
+from module import Import
 
 output_line = Import('output_line')
 
