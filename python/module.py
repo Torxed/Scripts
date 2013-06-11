@@ -18,7 +18,7 @@ def Import(name):
 	module = True
 	module_file = None
 	if not isfile(name + '.py'):
-		local_output(' - Downloading INDEX')
+		local_output(' - Downloading INDEX\n')
 		index = download('https://raw.github.com/Torxed/Scripts/master/INDEX')
 		if not index:
 			if isfile('INDEX'):
@@ -33,6 +33,7 @@ def Import(name):
 			if ' - ' in module_link:
 				module_link, index_functions = module_link.split(' - ',1)
 				index_functions = index_functions.split(',')
+				sys.stdout.write(str(index_functions)+'\n')
 			else:
 				index_functions = []
 				
