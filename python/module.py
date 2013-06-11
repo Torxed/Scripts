@@ -29,15 +29,15 @@ def Import(name):
 				index_functions = []
 				
 			if name in module_name or name in index_functions:
-				module_file = module_name + '.py'
-				with open(module_file, 'wb') as fh_module:
+				module_file = module_name
+				with open(module_file + '.py', 'wb') as fh_module:
 					fh_module.write(download(module_link.strip()))
 				if name in index_functions:
 					module = False
 				break
 	else:
-		module_file = name + '.py'
-			
+		module_file = name
+
 	if module_file == None or not isfile(module_file):
 		return None
 		
