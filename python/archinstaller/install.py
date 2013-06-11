@@ -13,16 +13,17 @@ opts, args = getopt.getopt(sys.argv[1:],"x",["no-internet"])
 for key, val in opts:
 	params[key] = val
 
+
+## Import modules and functions
+## These will be imported in order of: system,local,github
+## So if you're running this as a offline installer, INDEX + these
+## modules must be downloaded and placed in the current working dir.
+if not '--no-internet' in params:
+	checkInternet = Import('checkInternet')
 output_module = Import('output')
 output = output_module.output
 output_line = output_module.output_line
-
-systemExecution_module = Impot('sysExec')
-run = systemExecution_module.run
-
-internet_module = Import('internet')
-checkInternet = internet_module.checkInternet
-
+run = Impot('run')
 
 def listHDDs():
 	## TODO: Show the device name
