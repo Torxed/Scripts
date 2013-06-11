@@ -6,11 +6,18 @@ def download(url):
 	data = x.read()
 	x.close()
 	return data
-	
+
+def local_output(what, flush=True):
+	sys.stdout.write(what)
+	if flush:
+		sys.stdout.flush()	
+
 def Import(name):
+	local_output('Importing: ' + name + '\n')
 	module = True
 	module_file = None
 	if not isfile(name + '.py'):
+		local_output(' - Downloading INDEX')
 		index = download('https://raw.github.com/Torxed/Scripts/master/INDEX')
 		if not index:
 			if isfile('INDEX'):
@@ -29,6 +36,10 @@ def Import(name):
 				index_functions = []
 				
 			if name in module_name or name in index_functions:
+				if name in module_name:
+					local_output(' - Translated "' + name + '" into ' + module_name + '.py\n')
+				else:
+					local_output(' - Translated function "' + name + '" into ' + module_name + '.py\n')
 				module_file = module_name
 				with open(module_file + '.py', 'wb') as fh_module:
 					fh_module.write(download(module_link.strip()))
@@ -39,6 +50,7 @@ def Import(name):
 		module_file = name
 
 	if module_file == None or not isfile(module_file + '.py'):
+		local_output(' ! Could not located what you were looking for.\n')
 		return None
 		
 	if module:
