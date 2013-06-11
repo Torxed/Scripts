@@ -38,7 +38,7 @@ def Import(name):
 	else:
 		module_file = name
 
-	if module_file == None or not isfile(module_file):
+	if module_file == None or not isfile(module_file + '.py'):
 		return None
 		
 	if module:
