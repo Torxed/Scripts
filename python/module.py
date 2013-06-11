@@ -66,7 +66,7 @@ def Import(name):
 	if module:
 		return __import__(module_file)
 	else:
-		return __import__(module_file).name
+		return getattr(__import__(module_file), name)
 
 if __name__ == '__main__':
 	import sys
