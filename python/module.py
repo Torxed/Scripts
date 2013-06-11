@@ -1,4 +1,4 @@
-import sys
+#import sys
 from urllib2 import Request, urlopen
 from os.path import isfile
 def download(url):
@@ -9,9 +9,10 @@ def download(url):
 	return data
 
 def local_output(what, flush=True):
-	sys.stdout.write(what)
-	if flush:
-		sys.stdout.flush()	
+	pass
+	#sys.stdout.write(what)
+	#if flush:
+	#	sys.stdout.flush()	
 
 def Import(name):
 	local_output('Importing: ' + name + '\n')
