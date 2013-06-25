@@ -204,7 +204,7 @@ e('chmod +x /usr/bin/decrypt.sh').finish()
 
 print ' | * reencrypt.sh -> /usr/bin/reencrypt.sh'
 with open('/usr/bin/reencrypt.sh', 'wb') as fh:
-	fh.write('bioctl -d ' + enc_attached_as +\n')
+	fh.write('bioctl -d ' + enc_attached_as + '\n')
 e('chmod +x /usr/bin/reencrypt.sh').finish()
 
 print ' - Done'
