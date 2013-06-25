@@ -32,4 +32,4 @@ while 1:
 	i += 1
 	sys.stdout.write(str(i))
 	sys.stdout.flush()
-	e('dd if=' + engine[i%len(engine)-1] + ' of=/dev/rsd0c bs=4096 count=1024 seek=' + str(randint(0, 90000)))
+	e('dd if=' + engine[i%len(engine)-1] + ' of=/dev/rsd0c bs=4096 count=' + str(randint(1024, 8193, 1024)) + ' seek=' + str(randint(0, 90000)))

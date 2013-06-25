@@ -74,7 +74,7 @@ class e():
 		return self.handle.poll()
 
 
-x = e('egrep \'ad[0-9] |cd[0-0] |wd[0-9] \' /var/run/dmesg.boot')
+x = e('egrep \'ad[0-9] |cd[0-0] |sd[0-9] |wd[0-9] \' /var/run/dmesg.boot')
 drives = {}
 for line in x.stdout.readlines():
 	disk, desc = line.split(' ',1)
