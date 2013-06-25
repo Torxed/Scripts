@@ -34,5 +34,4 @@ while 1:
 	i += 1
 	sys.stdout.write(str(i))
 	sys.stdout.flush()
-	x = e('dd if=' + engine[i%len(engine)-1] + ' of=/dev/rsd0c bs=4096 count=' + str(randrange(1024, 8193, 1024)) + ' seek=' + str(randrange(0, terrabyte*1, 1024)))
-	x.finish()
+	e('dd if=' + engine[i%len(engine)-1] + ' of=/dev/rsd0c bs=4096 count=' + str(randrange(1024, 8193, 1024)) + ' seek=' + str(randrange(0, terrabyte*1, 1024)))
