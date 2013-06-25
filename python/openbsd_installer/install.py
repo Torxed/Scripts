@@ -33,8 +33,10 @@ class e():
 		if c:
 			self.e()
 
-	def finish(self):
+	def finish(self, output=False):
 		while self.poll() == None:
+			if output:
+				print self.stdout.readline()
 			sleep(0.25)
 		self.close()
 	def e(self, c=None):
@@ -110,7 +112,11 @@ raidvolumes = []
 total_raid_size = 0
 for drive in drives:
 	for part in drives[drive]['parts']:
-		if 'raid' in part[2].lower():
+		## Todo:
+		## reason for isalpha() is to exlude existing softraid crypto vaolumes.
+		## they will show up as sd0 or sd1 without any partition number and for
+		## some reason they show up here.
+		if 'raid' in part[2].lower() and part[0][-1].isalpha():
 			raidvolumes.append(drive + part[0])
 			total_raid_size += int(part[1])
 
@@ -132,20 +138,27 @@ sys.stdout.flush()
 
 print ' |'
 print ' | Zeroing on the raidvolume:'
-for drive in drives:
-	for part in drives[drive]['parts']:
-		print ' |\t/dev/r'+drive+part[0]
-x = e('dd if=/dev/zero of=/dev/rwd0b bs=1m count=1')
-x.finish()
-x = e('dd if=/dev/zero of=/dev/rwd0d bs=1m count=1')
-x.finish()
+fuse_string = ''
+for raidvolume in raidvolumes:
+	print ' | - /dev/r' + raidvolume
+	e('dd if=/dev/zero of=/dev/r' + raidvolume + ' bs=1m count=1').finish()
+	fuse_string += '/dev/' + raidvolume + ','
+#x.finish()
+#x = e('dd if=/dev/zero of=/dev/rwd0d bs=1m count=1')
+#x.finish()
 
 print ' | Fusing raidvolumes into one entity'
-x = e('bioctl -c 1 -l /dev/wd0b,/dev/wd0d softraid0')
+x = e('bioctl -c 1 -l ' + fuse_string[:-1] + ' softraid0')
+unenc_attached_as = None
+while x.poll() == None:
+	tmp = x.stdout.readline()
+	if 'softraid0' in tmp:
+		unenc_attached_as = tmp.replace('\n','').strip().split(' ')[-1]
+print ' | Unencrypted RAID attached as ' + str(unenc_attached_as)
 x.finish()
 
 print ' | Partitioning the fused entity...'
-x = e('disklabel -E sd0')
+x = e('disklabel -E ' + unenc_attached_as)
 x.input('a a\n\n\nRAID\nw\nq\n')
 x.finish()
 
@@ -157,33 +170,41 @@ print ' ! When asked for a password, remember it!'
 print ' ! Because there are NO restore functions for disk-enc passwds.'
 print ' !'
 sleep(1.5)
-x = e('bioctl -c C -l /dev/sd0a softraid0')
+x = e('bioctl -c C -l /dev/' + unenc_attached_as + 'a softraid0')
+enc_attached_as = None
+while x.poll() == None:
+	tmp = x.stdout.readline()
+	if 'softraid0' in tmp:
+		enc_attached_as = tmp.replace('\n','').strip().split(' ')[-1]
+print ' | Encrypted RAID attached as ' + str([enc_attached_as])
 x.finish()
 
 print ' | Paritioning inside the encrypted volume'
-x = e('disklabel -E sd1')
+x = e('disklabel -E ' + enc_attached_as)
 x.input('a a\n\n\n\nw\nq\n')
 x.finish()
 
 print ' | Generating filesystem'
-x = e('newfs sd1a')
+x = e('newfs ' + enc_attached_as + 'a')
 x.finish()
 
 print ' | Extracting helper scripts:'
 
 print ' | * nuke.py -> /usr/bin/nuke.py'
+# wget alternative:
+# e('wget -O /usr/bin/nuke.py https://raw.github.com/Torxed/Scripts/master/python/openbsd_installer/nuke.py')
 with open('/usr/bin/nuke.py', 'wb') as fh:
-	zlib.decompress('x\xda\x95SMo\xdb0\x0c=G\xbf\x82\xc50\xd8^\x9d\xd8\xee\x8aa)\xa0\xdbz\xe8e+\xb6\xec\xb2\xae\x07\x7f0\r\x11Y2$y\xf9\xc0~\xfc$\xcb\t\xda5\xe8:_\xcc\'\x92\xefQ\xf4\xf3\x9b\xb3\xac7:\x13\xaa.EV\x91\xcc\xba\x9d])\xc9\xa8\xed\x94\xb6`v\x86-\xb5j\xc1\xf4U\xa7U\x8d\xc6\xc0\x98\xbaU\x1d\xca\x14non\xafS\xf8\xb6\xf8\xf4\xe5\xfb"\x94\xeaR6\xee5\x96yD\xd2\x86\x94\xa5\x16\x0f\t#\x10;\xc6\x1a\\\x02\xc6\x9bUi\x93+6\xd9\x02\x0f\xc4\xc3I\nf\x85B\xf0\x85\xee\xd1\xc5\xb6Q\xbd\xe5A\xd0\x01\xd4\x9a\x07\xdd\x01\x92\x1cR\t\x9blV$\x10\xb6\xb3N\t\x01\x9c\xc3g%\xd1qO\x06\xc58\x9f\xe5\x85+\xda\xce\x02\xdf\xac\x16\xca`|8!y<`\x9dv\x83C\x04\xbf\xe1Z\x97\x86\xe4\x03\xacqg`\xb8I\x8b\xad\xd2\xbb\x88a\x1cU\xa4j+`\xda\x80i\x8a(y\xd4\xf6\x03\xb5\xf2mK\xd2\xc6B\xe5\x96\xbc6CK\xd3\x00-y\xd6\xe0\xafl\xefj@\x8d@\x9b&\xaf\xa12\xfc2\x9f\x7f\x80Z\xf5\xd2\xf2"\xbf\xb8|\xc2\xfau\xd8\xef\xfe_\xc4\xe3gx\x05\xf5\x89\x89[j:\x17\xd8\xff\x9ev\x08\r\xe2\x9a\x7f,\xe6\x17\'\xe6\xa6\xfdK\xfc\xaf\x18\xfa\x99\xc2#\x89\x1bI\x96J\x114Di\xecT\xa3\xf1f\x93\xfd\x1a\xcf"\xe6\xec|\xf8\xec\x1bM\xd6i\xfb&\x8b\xba\xb4\xa4\xe4\x15\x80\xa3#g\xc1\x9c\xa1| \x89.\xbc\x8b\x8e\x17\x8fR\x08\xa0\x0fc\x1e\xf1\x08\xefYp^\xe1\xcc\xf6\\\xe9g\x15\xbd\x13\xce\xd8\xc6\xea\x98\x92\xc4\x19\x8e\xe0\x9cCq\xa2v,y\x92Y\x8a\xde\xac\xbcM\x8f\x0b\x8b\xe0\x1c\xc2\x98w\xf4\xd63\x07\x90L\x8b{\x97\x89^\\\xa2\xef\xf5*\xe3\xdf\x19{\'\xa4\xe0\x16\xfa>\x05\x1f\'\xc9@1\xac\xf9\xef\xda<\x85y\xee\x1e\x7f\x87?\xd1\x1bZ\x1b')
+	fh.write(zlib.decompress('x\x9c\x95SMo\xdb0\x0c=G\xbf\x82\xc50\xd8n\x9d\xc4N\x83\xf5\x03\xf0eX1\xf4\xb2\x05[vY\xd7\x83?\xe8\x84\x88,\x19\x92\xbc&\xc1~\xfcd\xd91Z$\xe8\xba\x83a>\x91||\xa6\x9f\xde\x9dM\x1b\xad\xa6\\\xe6)\x9ff$\xa6\xf5\xce\xac\xa5`T\xd5R\x19\xd0;\xcdJ%+\xd0MV+\x99\xa3\xd6\xd0\xa7\x16\xb2F\x11\xc2\xe2~q\x17\xc2\xf7\xe5\xa7\xaf?\x96]\xa9JEa_}Y\x8b\xec\xb3\xc2.i\xa8\xc2CJs\xc4\x9a1\x83J\xa5\xd9\xce $\x10GW\x97W\xf3\xf8z6g\xac\xc0\x12\xd0\x7fZ\xa7&\xb8e\xa3\xad\xcd\xba\x91\xee$\x04\xbdF\xce\x93\xa5j\xd0\xc6\xa6\x90\x8dI:)\x16X\xc2\xa4S\xe4 \t\x97\n\xd8\xe8iM\x1ca;\xa9%\xe7\x90$\xf0E\n\xb4\xdc#\xa7\xc4\x8f&Ql\x8b\xb6\x93\x8eo\x92s\xa9\xd1?\x9c\x90\x18\x0eX\xadH\x18\xf0\xe0\x0f\xdc\xa9T\x93X\xc1\x06w\x1a\xdc\x17VXI\xb5\xf3\x18\xfa^F27\x1c\xc6\x05\xe8"\xf6\x82gm?Q\xc9\xb6\xad$\xa5\rdv\xfd\x1b\xedZ\x8a\x02\xa8L\xa6\x05\xfe\x9e\xeem\r\xc8\x1e(]D9d:\x99G7\x1f \x97\x8d0I\x1c\xcd\xe6/X\xbf\xb9\xcd\xef\xffE\xdc\xff\xa07P\x9fP\\QQ\xdb\xc0\xfc\xb7Z\x17j\xc4Mr\x1d\xdf\xccN\xe8\xa6\xfdk\xfco\x10}4\xe1\xd9\x88{A\x86R\xde\xcd\xe0\xa96c\x85\xba5\xa1h6hY!\x85\xd9\xe7\x8fg\x1e\xb3\x8e?\xfc\xff\'E\xc6\x8ah\xbb\xadGSCR\xdc\x02X^\xb2^\x8c\x18\x8a\x15\x89\xd6\xb4\x0f\xde\xb0\x01/\x84\x0e4\x9d\xde\x01\xf7\xf0\x91u\x16\x8c\xad\xeb\x8e\'\xfd\xca\xbcsn\x1d\xae\x8d\xf2)\x08\xac\xf3\x08.\xec\xa58Q\xdb\x97\xbc\xc8\x94\xbc\xd1\xeb\xd6\xaf\xc3\xe6<\xb8\x80N\xe6\x03\xbdo\x99;\x10\x8c\xe3G\x9b\xf1^\xddf\xdb\xdbN\x19.\xb0\xdf\x9a"\x04\xbb\xdb\xcb\x10\xda8\x08\x1c\x89\xdb\xf8qu\x14\xc2p\xb3\xcf\xe3CG0)I\x90\x93\xf9\x17\x18\xbela'))
 e('chmod +x /usr/bin/nuke.py').finish()
 
 print ' | * decrypt.sh -> /usr/bin/decrypt.sh'
 with open('/usr/bin/decrypt.sh', 'wb') as fh:
-	fh.write('bioctl -c C -l /dev/sd0 softraid0\n')
+	fh.write('bioctl -c C -l /dev/' + unenc_attached_as + 'a softraid0\n')
 e('chmod +x /usr/bin/decrypt.sh').finish()
 
-print ' | * encrypt.sh -> /usr/bin/encrypt.sh'
-with open('/usr/bin/encrypt.sh', 'wb') as fh:
-	fh.write('bioctl -d sd1\n')
-e('chmod +x /usr/bin/encrypt.sh').finish()
+print ' | * reencrypt.sh -> /usr/bin/reencrypt.sh'
+with open('/usr/bin/reencrypt.sh', 'wb') as fh:
+	fh.write('bioctl -d ' + enc_attached_as +\n')
+e('chmod +x /usr/bin/reencrypt.sh').finish()
 
 print ' - Done'

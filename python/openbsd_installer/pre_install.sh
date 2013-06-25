@@ -1,5 +1,9 @@
 #!/bin/sh
-packages=("python-2.7.3" "nano-2.2.6" "wget-1.14")
+
+## Array:
+## - Note that sh lists are different than bash lists.
+## - In bash we would do packagaes=("python" "wget" "nano")
+packages="python nano wget"
 
 ## Cleanup prep-steps:
 # mkdir installer_tmp
