@@ -1,8 +1,10 @@
 #!/usr/local/bin/python
 import sys
 from subprocess import Popen, PIPE, STDOUT
-from random import randint
+from random import randrange
 from time import sleep
+
+terrabyte = 1073741824
 
 def e(what):
 	x = Popen(what, shell=True, stdout=PIPE, stderr=STDOUT, stdin=PIPE)
@@ -23,7 +25,7 @@ e('dd if=/dev/zero of=/dev/rsd0c bs=4096 count=4096 seek=8192')
 print ' | Randomizing midpoint'
 e('dd if=/dev/random of=/dev/rsd0c bs=4096 count=4096 seek=8192')
 
-print ' | Initializing last-resort nuke!'
+print ' | Initializing last-resort nuke of a 2GB!'
 sys.stdout.write(' | Iteration:  ')
 i = 0
 engine = ['/dev/zero', '/dev/urandom', '/dev/random']
@@ -32,4 +34,4 @@ while 1:
 	i += 1
 	sys.stdout.write(str(i))
 	sys.stdout.flush()
-	e('dd if=' + engine[i%len(engine)-1] + ' of=/dev/rsd0c bs=4096 count=' + str(randint(1024, 8193, 1024)) + ' seek=' + str(randint(0, 90000)))
+	e('dd if=' + engine[i%len(engine)-1] + ' of=/dev/rsd0c bs=4096 count=' + str(randrange(1024, 8193, 1024)) + ' seek=' + str(randrange(0, terrabyte*1, 1024))).finish()
