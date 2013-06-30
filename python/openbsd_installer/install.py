@@ -155,7 +155,7 @@ for raidvolume in raidvolumes:
 #x.finish()
 
 print ' | Fusing raidvolumes into one entity'
-x = e('bioctl -c 1 -l ' + fuse_string[:-1] + ' softraid0')
+x = e('bioctl -c 0 -l ' + fuse_string[:-1] + ' softraid0')
 unenc_attached_as = None
 while x.poll() == None:
 	tmp = x.stdout.readline()
