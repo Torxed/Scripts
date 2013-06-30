@@ -154,17 +154,18 @@ for raidvolume in raidvolumes:
 #x = e('dd if=/dev/zero of=/dev/rwd0d bs=1m count=1')
 #x.finish()
 
-print ' | Fusing raidvolumes into one entity'
+print ' | Fusing raidvolumes into one entity: ' + fuse_string[:-1]
 x = e('bioctl -c 0 -l ' + fuse_string[:-1] + ' softraid0')
 unenc_attached_as = None
 while x.poll() == None:
 	tmp = x.stdout.readline()
+	print 'DEBUG:',tmp
 	if 'softraid0' in tmp:
 		unenc_attached_as = tmp.replace('\n','').strip().split(' ')[-1]
 print ' | Unencrypted RAID attached as ' + str(unenc_attached_as)
 x.finish()
 
-print ' | Partitioning the fused entity...'
+print ' | Partitioning the fused entity ' + unenc_attached_as
 x = e('disklabel -E ' + unenc_attached_as)
 x.input('a a\n\n\nRAID\nw\nq\n')
 x.finish()
