@@ -124,25 +124,32 @@ print ' | Following raidvolumes will be engaged:'
 print ' | ' + ','.join(raidvolumes)
 print ' | Total size for raidvolume: ' + ''.join(humanify(total_raid_size))
 
-sys.stdout.write(' |-- You have two seconds to abort ..')
-sys.stdout.flush()
-sleep(1)
-sys.stdout.write('\b')
-sys.stdout.flush()
-sleep(1)
-sys.stdout.write('\b')
-sys.stdout.flush()
-sleep(1)
-sys.stdout.write('\n')
-sys.stdout.flush()
+try:
+	sys.stdout.write(' |-- You have two seconds to abort ..')
+	sys.stdout.flush()
+	sleep(1)
+	sys.stdout.write('\b ')
+	sys.stdout.flush()
+	sleep(1)
+	sys.stdout.write('\b ')
+	sys.stdout.flush()
+	sleep(1)
+	sys.stdout.write(' \n')
+	sys.stdout.flush()
+except:
+	print ' | Since you aborted the engage,'
+	raidvolumes = raw_input('Enter disks to use: (wd0,wd1..): ').split(',')
 
 print ' |'
-print ' | Zeroing on the raidvolume:'
+print ' | Zeroing on the raidvolume (5 sec to abort for each drive):'
 fuse_string = ''
 for raidvolume in raidvolumes:
 	print ' | - /dev/r' + raidvolume
+	sleep(5)
 	e('dd if=/dev/zero of=/dev/r' + raidvolume + ' bs=1m count=1').finish()
 	fuse_string += '/dev/' + raidvolume + ','
+
+
 #x.finish()
 #x = e('dd if=/dev/zero of=/dev/rwd0d bs=1m count=1')
 #x.finish()

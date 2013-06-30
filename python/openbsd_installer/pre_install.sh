@@ -11,6 +11,10 @@ cd installer_tmp
 
 if [ "$1" = "online" ]; then
 	export PKG_PATH=ftp://ftp.eu.openbsd.org/pub/OpenBSD/5.3/packages/`machine -a`/
+elif [ "$1" == "offline" ]; then
+	if [ -f "/python*" ]; then
+		echo "Python located..."
+	fi
 else
 	SSH_SERVER="10.0.2.2"
 	SSH_USER="root"
