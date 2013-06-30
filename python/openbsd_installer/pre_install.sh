@@ -3,7 +3,7 @@
 ## Array:
 ## - Note that sh lists are different than bash lists.
 ## - In bash we would do packagaes=("python" "wget" "nano")
-packages="python nano wget"
+packages="python-2.7.3p1 nano wget"
 
 ## Cleanup prep-steps:
 mkdir installer_tmp
