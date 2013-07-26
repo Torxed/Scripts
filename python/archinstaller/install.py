@@ -148,6 +148,11 @@ x = Popen('arch-chroot /mnt python2 /root/inside_install.py ' + HDD_TARGET, shel
 while x.poll() == None:
 	time.sleep(0.1)
 
+try:
+	os.remove('/mnt/root/inside_install.py')
+except:
+	pass
+
 output(' |\n | Congratulations.. Your system is now installed. Enjoy //Torxed@GitHub ;D\n')
 x = run('umount /mnt')
 time.sleep(1)

@@ -1,9 +1,114 @@
 import sys, time, os
+from getpass import getpass
 from subprocess import PIPE, Popen, STDOUT
 
 if os.geteuid() >  0:
 	sys.stdout.write(" ![ERROR] Must be root to run this script\n")
 	sys.exit(1)
+
+
+## =========== Python programatical way of getting Network Interfaces:
+# Credit: http://programmaticallyspeaking.com/getting-network-interfaces-in-python.html
+# Credit: http://code.google.com/p/pydlnadms/
+from socket import AF_INET, AF_INET6, inet_ntop
+from ctypes import (
+	Structure, Union, POINTER,
+	pointer, get_errno, cast,
+	c_ushort, c_byte, c_void_p, c_char_p, c_uint, c_int, c_uint16, c_uint32
+)
+import ctypes.util
+import ctypes
+ 
+class struct_sockaddr(Structure):
+	_fields_ = [
+		('sa_family', c_ushort),
+		('sa_data', c_byte * 14),]
+ 
+class struct_sockaddr_in(Structure):
+	_fields_ = [
+		('sin_family', c_ushort),
+		('sin_port', c_uint16),
+		('sin_addr', c_byte * 4)]
+ 
+class struct_sockaddr_in6(Structure):
+	_fields_ = [
+		('sin6_family', c_ushort),
+		('sin6_port', c_uint16),
+		('sin6_flowinfo', c_uint32),
+		('sin6_addr', c_byte * 16),
+		('sin6_scope_id', c_uint32)]
+ 
+class union_ifa_ifu(Union):
+	_fields_ = [
+		('ifu_broadaddr', POINTER(struct_sockaddr)),
+		('ifu_dstaddr', POINTER(struct_sockaddr)),]
+ 
+class struct_ifaddrs(Structure):
+	pass
+struct_ifaddrs._fields_ = [
+	('ifa_next', POINTER(struct_ifaddrs)),
+	('ifa_name', c_char_p),
+	('ifa_flags', c_uint),
+	('ifa_addr', POINTER(struct_sockaddr)),
+	('ifa_netmask', POINTER(struct_sockaddr)),
+	('ifa_ifu', union_ifa_ifu),
+	('ifa_data', c_void_p),]
+ 
+libc = ctypes.CDLL(ctypes.util.find_library('c'))
+ 
+def ifap_iter(ifap):
+	ifa = ifap.contents
+	while True:
+		yield ifa
+		if not ifa.ifa_next:
+			break
+		ifa = ifa.ifa_next.contents
+ 
+def getfamaddr(sa):
+	family = sa.sa_family
+	addr = None
+	if family == AF_INET:
+		sa = cast(pointer(sa), POINTER(struct_sockaddr_in)).contents
+		addr = inet_ntop(family, sa.sin_addr)
+	elif family == AF_INET6:
+		sa = cast(pointer(sa), POINTER(struct_sockaddr_in6)).contents
+		addr = inet_ntop(family, sa.sin6_addr)
+	return family, addr
+ 
+class NetworkInterface(object):
+	def __init__(self, name):
+		self.name = name
+		self.index = libc.if_nametoindex(name)
+		self.addresses = {}
+ 
+	def __str__(self):
+		return "%s [index=%d, IPv4=%s, IPv6=%s]" % (
+			self.name, self.index,
+			self.addresses.get(AF_INET),
+			self.addresses.get(AF_INET6))
+ 
+def get_network_interfaces():
+	ifap = POINTER(struct_ifaddrs)()
+	result = libc.getifaddrs(pointer(ifap))
+	if result != 0:
+		raise OSError(get_errno())
+	del result
+	try:
+		retval = {}
+		for ifa in ifap_iter(ifap):
+			name = ifa.ifa_name
+			i = retval.get(name)
+			if not i:
+				i = retval[name] = NetworkInterface(name)
+			family, addr = getfamaddr(ifa.ifa_addr.contents)
+			if addr:
+				i.addresses[family] = addr
+		return retval.values()
+	finally:
+		libc.freeifaddrs(ifap)
+
+## ===================================================
+## ===================================================
 
 def output(what, flush=True):
 	sys.stdout.write(what)
@@ -75,7 +180,10 @@ class run():
 
 	def getline(self):
 		while True:
-			line = self.stdout.readline()
+			try:
+				line = self.stdout.readline()
+			except:
+				break
 			if len(line) <= 0: break
 			yield line
 
@@ -85,6 +193,11 @@ class run():
 	def close(self):
 		self.stdout.close()
 		self.stdin.close()
+
+def passwd(USR, PWD):
+	passwd = run('echo -e "' + PWD + '\\\\n' + PWD + '" | passwd ' + USR)
+	passwd.wait( ' Setting ' + USR + '\'s password |')
+	return True
 
 def checkInternet():
 	x = output_line('Checking for a internet connection ')
@@ -123,50 +236,76 @@ def listPartitions(drive):
 			parts.append(partition[len(drive):])
 	return parts
 
+def get_graphiccard_driver():
+	x = run('lspci | grep VGA')
+	raw = x.getline()
+	x.close()
+	raw = str(raw)
+
+	if 'intel' in raw.lower():
+		return 'Intel', 'xf86-video-intel libva-intel-driver'
+	elif 'nvidia' in raw.lower():
+		return 'nVidia', select(['nvidia', 'nvidia-304xx'], 'nVidia driver (304 is for GeForce 6/7)')
+	elif 'ati' in raw.lower() or 'amd' in raw.lower():
+		## Prior steps:
+		# https://wiki.archlinux.org/index.php/AMD_Catalyst#Installation
+		return 'ATi', 'catalyst catalyst-utils'
+	else:
+		return 'Generic', 'xf86-video-vesa'
+	return None, None
+
 def select(List, text=''):
 	index = {}
-	output(' Select one of the following' + text + ':\n', False)
+	output(' | Select one of the following' + text + ':\n', False)
 	for i in range(0, len(List)):
-		output(' ' + str(i) + ': ' + List[i] + '\n', False)
-	output('Choice: ')
-	choice = sys.stdin.readline()
+		output('   ' + str(i) + ': ' + str(List[i]) + '\n', False)
+	try:
+		sys.stdin.flush()
+		sys.stdout.flush()
+	except:
+		pass
+	output(' | Choice: ')
+	choice = sys.stdin.readline().replace('\r', '').replace('\n', '')
 	if len(choice) <= 0:
 		choice = 0
 	return List[int(choice)]
 
+graphics, graphicdriver = get_graphiccard_driver()
+
 output(' |\n')
 output(' | Welcome root to your your environment, let me prepare it for you!\n |\n')
 output(' |--- Assuming:\n', False)
+output(' | Graphics: ' + graphics)
 output(' | Bootload: MBR for bootloader\n', False)
 output(' | Language: ENG (US) base-language\n', False)
 output(' | Keyboard: SWE layout\n',False)
 output(' | Timezone: Europe/Stockholm\n')
 
+X = select([None, 'OpenBox', 'KDE', 'Gnome'], ' Graphical environments')
+WEBBROWSER = select([None, 'Chromium', 'FireFox'], ' Browser of poison')
+MEDIAPLAYER = select([None, 'VLC', 'DragonPlayer'])
+USER = raw_input(' [<<] Enter a desired username: ')
+if len(USER) <= 0:
+	print ' | Defaulting to "root" user"'
+	USER = 'root'
+	## Try to default to root,
+	## Some things should not be run as root, but they "can".
+	## For instance, X will run (shaky) under root while audio won't
+	## So we can try to install X but we'll skip Audio features.
+else:
+	PASS = getpass(' [<<] Enter a password for "' + USER + '": ')
 
-## We don't really need to check for internet here,
-## since the main install.py does this.
-"""
-internet = checkInternet()
-if not internet:
-	x = output_line(' - Restarting DHCP service in 9')
-	for i in range(9,0,-1):
-		x.replace(str(i))
-		time.sleep(1)
-	x.add('\n')
-	del x
-	output(' - Stopping DHCP (if started)\n')
-	run('systemctl stop dhcpcd.service')
-	time.sleep(1)
-	output(' - Starting DHCP again\n')
-	run('systemctl start dhcpcd.service')
-	output(' - Giving time to get an IP (TODO: Inset run::poll()\n')
-	time.sleep(5)
-	internet = checkInternet()
-	if not internet:
-		sys.stdout.write(' ![ERROR] No internet connection on any interface, aborting!\n')
-		os._exit(1)
-output('\n')
-"""
+	x = run('useradd -m -g users -s /bin/bash ' + USER)
+	x.wait(' Generating new user "' + USER + '" |')
+	passwd(USER, PASS)
+
+	time.sleep(4)
+
+X_MAP = {'OpenBox' : ['pacman --noconfirm -S openbox',
+					'mkdir -p /home/' + USER + '/.config/openbox',
+					'cp /etc/xdg/openbox/{rc.xml,menu.xml,autostart,environment} /home/' + USER + '/.config/openbox',
+					'echo "exec openbox-session" >> /home/' + USER + '/.xinitrc',
+					'echo "[[ -z \$DISPLAY && \$XDG_VTNR -eq 1 ]] && exec startx" >> /home/' + USER + '/.bash_profile']}
 
 lang = output_line(' | Writing language configuration')
 with open('/etc/locale.gen', 'wb') as fh:
@@ -180,29 +319,33 @@ lang.beginning(' [OK] ')
 
 x = run('locale-gen')
 x.wait(' Generating language files |')
-x.close()
 
 run('ln -s /usr/share/zoneinfo/Europe/Stockholm /etc/localtime').close()
 clock = run('hwclock --systohc --utc')
 clock.wait(' Setting system clock to UTC (Installing Windows later might get time issues) |')
-clock.close()
 
 output(' [<<] Enter a bad-ass hostname for your machine: ')
 with open('/etc/hostname', 'wb') as fh:
 	fh.write(sys.stdin.readline())
 
-output(' | == Don\'t forget to run: "systemctl start dhcpcd" after reboot!\n')
-#dhcp = run('systemctl enable dhcpcd')
-#dhcp.wait(' Enabling DHCP |')
+#output(' | == Don\'t forget to run: "systemctl start dhcpcd" after reboot!\n')
+for ni in get_network_interfaces():
+	dhcp = run('systemctl enable dhcpcd@' + ni.name + '.service')
+	dhcp.wait(' Enabling DHCP on interface ' + ni.name + ' |')
 
-passwd = run('passwd')
-output(' [<<] Enter your root password (visible for now): ')
-passwd.write(sys.stdin.readline())
-passwd.close()
+networktools = run('pacman --noconfirm -S iw wpa_supplicant')
+networktools.wait(' Installing Wireless tools |')
 
-pacman = run('pacman -S grub-bios')
-time.sleep(5)
-pacman.write('y')
+sudo = run('pacman --noconfirm -S sudo')
+sudo.wait(' Installing sudo and adding "' + USER + '" to sudo access list')
+with open('/etc/sudoers', 'ab') as fh:
+	fh.write('\n' + USER + '   ALL=(ALL) ALL\n')
+
+ROOT_PWD = getpass(' [<<] Enter your root password: ')
+passwd('root', ROOT_PWD)
+
+pacman = run('pacman --noconfirm -S grub-bios')
+#pacman.write('y')
 pacman.wait(' Installing GRUB binaries |')
 
 grub = run('grub-install --recheck /dev/' + sys.argv[1][:-1])
@@ -211,4 +354,18 @@ run('cp /usr/share/locale/en\@quot/LC_MESSAGES/grub.mo /boot/grub/locale/en.mo')
 
 grubcfg = run('grub-mkconfig -o /boot/grub/grub.cfg')
 grubcfg.wait(' Generating GRUB configuration |')
+
+if X:
+	x = run('pacman --noconfirm -S ' + graphicdriver)
+	x.wait(' Installing graphical drivers |')
+	x = run('echo | pacman --noconfirm -S xorg-server xorg-xinit xorg-apps')
+	x.wait(' Preparing graphical environment |')
+
+	counter = 1
+	tot_steps = len(X_MAP[X])
+	for step in X_MAP[X]:
+		x = run(step)
+		x.wait(' Installing ' + X + ' step ' + str(counter) + '(' + str(tot_steps) + ') |')
+		counter += 1
+
 print ' | Done, inside installer handing off'
