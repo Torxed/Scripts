@@ -32,7 +32,8 @@ class run():
 			return True
 		else:
 			self.output.beginning(' ![Error] ')
-			print self.stdout.read()
+			output_line('\t' + str([self.cmd]))
+			output_line('\t' + self.stdout.read())
 			self.close()
 			return False
 
