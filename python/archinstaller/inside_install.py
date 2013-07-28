@@ -109,6 +109,76 @@ def get_network_interfaces():
 
 ## ===================================================
 ## ===================================================
+class openboxMenu_generator():
+	def __init__(self):
+		self.text = '<?xml version="1.0" encoding="utf-8"?>\n'
+		self.text += '<openbox_menu xmlns="http://openbox.org/3.4/menu">\n'
+
+		self.menu = '<menu id="root-menu" label="Openbox 3">\n'
+		self.menu += '<separator label="Applications"/>\n'
+		self.items = []
+	def add_menu(self, _lbl, _id):
+		self.menu += '<menu id="' + _id + '"/>\n'
+		self.text += '<menu id="' + _id + '" label="' + _lbl + '">\n'
+		self.text += '\n'.join(self.items)
+		self.text += '</menu>\n'
+		self.items = []
+
+	def add_item(self, _lbl, _exec):
+		s = ''
+		s += '<item label="' + _lbl + '">\n'
+		s += '	<action name="Execute">\n'
+		s += '		<execute>' + _exec + '</execute>\n'
+		s += '	</action>\n'
+		s += '</item>\n'
+		self.items.append(s)
+
+	def save(self):
+		self.menu += '	<separator label="System"/>\n'
+		self.menu += '	<menu id="system-menu"/>\n'
+		self.menu += '	<separator/>\n'
+		self.menu += '	<item label="Log Out">\n'
+		self.menu += '		<action name="Exit">\n'
+		self.menu += '			<prompt>yes</prompt>\n'
+		self.menu += '		</action>\n'
+		self.menu += '	</item>\n'
+		self.menu += '	<item label="Shut down">\n'
+		self.menu += '		<action name="Execute">\n'
+		self.menu += '			<execute>systemctl poweroff -i</execute>\n'
+		self.menu += '		</action>\n'
+		self.menu += '	</item>\n'
+		self.menu += '</menu>\n'
+
+		"""
+		self.text = ""<menu id="system-menu" label="System">
+						<item label="Openbox Configuration Manager">
+							<action name="Execute">
+								<command>obconf</command>
+								<startupnotify>
+									<enabled>yes</enabled>
+								</startupnotify>
+							</action>
+						</item>
+						<item label="Openbox Menu Editor">
+							<action name="Execute">
+								<execute>obmenu</execute>
+							</action>
+						</item>
+						<item label="Openbox Theme Editor">
+							<action name="Execute">
+								<execute>lxappearance</execute>
+							</action>
+						</item>
+						<separator/>
+						<item label="Reconfigure Openbox">
+							<action name="Reconfigure"/>
+						</item>
+					</menu>""
+		"""
+
+		self.text += self.menu + '</openbox_menu>'
+
+		return self.text
 
 def output(what, flush=True):
 	sys.stdout.write(what)
@@ -166,6 +236,8 @@ class run():
 			return True
 		else:
 			self.output.beginning(' ![Error] ')
+			output_line('\t' + str([self.cmd]))
+			output_line('\t' + self.stdout.read())
 			self.close()
 			return False
 
@@ -270,10 +342,14 @@ def select(List, text=''):
 		choice = 0
 	return List[int(choice)]
 
+def install(package_list, text='Installing packages'):
+	x = run('echo | pacman --noconfirm -S ' + ' '.join(package_list))
+	x.wait(' ' + text + ' |')
+
 graphics, graphicdriver = get_graphiccard_driver()
 
 output(' |\n')
-output(' | Welcome root to your your environment, let me prepare it for you!\n |\n')
+output(' | Welcome root to your new environment, let me prepare it for you!\n |\n')
 output(' |--- Assuming:\n', False)
 output(' | Graphics: ' + graphics)
 output(' | Bootload: MBR for bootloader\n', False)
@@ -284,7 +360,16 @@ output(' | Timezone: Europe/Stockholm\n')
 X = select([None, 'OpenBox', 'KDE', 'Gnome'], ' Graphical environments')
 WEBBROWSER = select([None, 'Chromium', 'FireFox'], ' Browser of poison')
 MEDIAPLAYER = select([None, 'VLC', 'DragonPlayer'])
+ROOT_PWD = getpass(' [<<] Enter "ROOT" password: ')
+
+output(' [<<] Enter a bad-ass hostname for your machine: ')
+with open('/etc/hostname', 'wb') as fh:
+	fh.write(sys.stdin.readline())
+
 USER = raw_input(' [<<] Enter a desired username: ')
+while USER == 'root':
+	USER = raw_input(' [<<] Enter a desired username (Not root): ')
+
 if len(USER) <= 0:
 	print ' | Defaulting to "root" user"'
 	USER = 'root'
@@ -299,7 +384,14 @@ else:
 	x.wait(' Generating new user "' + USER + '" |')
 	passwd(USER, PASS)
 
-	time.sleep(4)
+info = output_line(' | Entering fully automated install in 3')
+time.sleep(1)
+info.replace('2')
+time.sleep(1)
+info.replace('1')
+time.sleep(1)
+info.replace(' ')
+info.beginning(' [OK] ')
 
 X_MAP = {'OpenBox' : ['pacman --noconfirm -S openbox',
 					'mkdir -p /home/' + USER + '/.config/openbox',
@@ -324,29 +416,20 @@ run('ln -s /usr/share/zoneinfo/Europe/Stockholm /etc/localtime').close()
 clock = run('hwclock --systohc --utc')
 clock.wait(' Setting system clock to UTC (Installing Windows later might get time issues) |')
 
-output(' [<<] Enter a bad-ass hostname for your machine: ')
-with open('/etc/hostname', 'wb') as fh:
-	fh.write(sys.stdin.readline())
 
 #output(' | == Don\'t forget to run: "systemctl start dhcpcd" after reboot!\n')
 for ni in get_network_interfaces():
 	dhcp = run('systemctl enable dhcpcd@' + ni.name + '.service')
 	dhcp.wait(' Enabling DHCP on interface ' + ni.name + ' |')
 
-networktools = run('pacman --noconfirm -S iw wpa_supplicant')
-networktools.wait(' Installing Wireless tools |')
-
-sudo = run('pacman --noconfirm -S sudo')
-sudo.wait(' Installing sudo and adding "' + USER + '" to sudo access list')
+install(['iw','wpa_supplicant'], 'Installing Wireless tools')
+install(['alsa-plugins',], 'Installing Audio tools')
+install(['pyglet',], 'Installing a Python graphical library for the "first-time-login"')
+install(['sudo',], 'Installing sudo and adding "' + USER + '" to sudo access list')
 with open('/etc/sudoers', 'ab') as fh:
 	fh.write('\n' + USER + '   ALL=(ALL) ALL\n')
 
-ROOT_PWD = getpass(' [<<] Enter your root password: ')
-passwd('root', ROOT_PWD)
-
-pacman = run('pacman --noconfirm -S grub-bios')
-#pacman.write('y')
-pacman.wait(' Installing GRUB binaries |')
+install(['grub-bios',], 'Installing GRUB binaries')
 
 grub = run('grub-install --recheck /dev/' + sys.argv[1][:-1])
 grub.wait(' Installing GRUB to MBR |')
@@ -355,11 +438,10 @@ run('cp /usr/share/locale/en\@quot/LC_MESSAGES/grub.mo /boot/grub/locale/en.mo')
 grubcfg = run('grub-mkconfig -o /boot/grub/grub.cfg')
 grubcfg.wait(' Generating GRUB configuration |')
 
+
 if X:
-	x = run('pacman --noconfirm -S ' + graphicdriver)
-	x.wait(' Installing graphical drivers |')
-	x = run('echo | pacman --noconfirm -S xorg-server xorg-xinit xorg-apps')
-	x.wait(' Preparing graphical environment |')
+	install([graphicdriver,], 'Installing "' + graphics + '" graphical drivers')
+	install('xorg-server xorg-xinit xorg-apps'.split(' '), 'Preparing graphical environment')
 
 	counter = 1
 	tot_steps = len(X_MAP[X])
@@ -368,4 +450,51 @@ if X:
 		x.wait(' Installing ' + X + ' step ' + str(counter) + '(' + str(tot_steps) + ') |')
 		counter += 1
 
+	if X == 'OpenBox':
+		gen = openboxMenu_generator()
+		gen.add_item('AlsaMixer', 'xterm alsamixer')
+		if MEDIAPLAYER:
+			gen.add_item(MEDIAPLAYER, MEDIAPLAYER.lower())
+		gen.add_item('Thunar', 'thunar')
+		gen.add_menu('Accessories', 'apps-accessories-menu')
+
+		gen.add_menu('Games', 'apps-games-menu')
+
+		gen.add_item('Nano', 'xterm -e nano -w -S')
+		gen.add_menu('Editors', 'apps-editors-menu')
+
+		gen.add_item('Xterm', 'xterm')
+		gen.add_menu('Terminals', 'apps-term-menu')
+
+		if WEBBROWSER:
+			gen.add_item(WEBBROWSER, WEBBROWSER.lower())
+		gen.add_menu('Internet', 'apps-net-menu')
+
+		with open('/home/' + USER + '/.config/openbox/menu.xml', 'wb') as fh:
+			fh.write(gen.save())
+
+if WEBBROWSER:
+	install([WEBBROWSER.lower(),], 'Installing ' + WEBBROWSER)
+
+if MEDIAPLAYER:
+	media_map = {'DragonPlayer' : 'kdemultimedia-dragonplayer', 'VLC' : 'vlc'}
+	install([media_map[MEDIAPLAYER],], 'Installing ' + MEDIAPLAYER)
+
+
+prepping_first_launch = output_line('Prepping first launch ')
+
+if not os.path.exists('/etc/systemd/system/getty@tty1.service.d'):
+	os.makedirs('/etc/systemd/system/getty@tty1.service.d')
+with open('/etc/systemd/system/getty@tty1.service.d/autologin.conf', 'wb') as fh:
+	fh.write('[Service]\n')
+	fh.write('ExecStart=\n')
+	fh.write('ExecStart=-/usr/bin/agetty --autologin ' + USER + ' --noclear %I 38400 linux\n')
+	fh.write('Type=simple\n')
+with open('/home/' + USER + '/.config/openbox/autostart', 'ab') as fh:
+	fh.write('python2 ~/first_boot.py &\n')
+
+prepping_first_launch.beginning(' [OK] ')
+
+
+passwd('root', ROOT_PWD)
 print ' | Done, inside installer handing off'

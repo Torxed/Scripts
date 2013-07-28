@@ -48,9 +48,14 @@ def select(List, text=''):
 	index = {}
 	output(' | Select one of the following' + text + ':\n', False)
 	for i in range(0, len(List)):
-		output('   ' + str(i) + ': ' + List[i] + '\n', False)
+		output('   ' + str(i) + ': ' + str(List[i]) + '\n', False)
+	try:
+		sys.stdin.flush()
+		sys.stdout.flush()
+	except:
+		pass
 	output(' | Choice: ')
-	choice = sys.stdin.readline()
+	choice = sys.stdin.readline().replace('\r', '').replace('\n', '')
 	if len(choice) <= 0:
 		choice = 0
 	return List[int(choice)]
