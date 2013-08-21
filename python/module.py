@@ -67,7 +67,7 @@ def Import(name):
 				else:
 					local_output(' - Translated function "' + name + '" into ' + module_name + '.py\n')
 				module_file = module_name
-				with open(module_file + '.py', 'wb') as fh_module:
+				with open(module_file + '.py', 'w') as fh_module:
 					fh_module.write(download(module_link.strip()))
 				if name in index_functions and name not in module_name:
 					module = False
