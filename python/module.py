@@ -1,12 +1,27 @@
-#import sys
-from urllib2 import Request, urlopen
+import sys
 from os.path import isfile
-def download(url):
-	req = Request(url)
-	x = urlopen(req)
-	data = x.read()
-	x.close()
-	return data
+if sys.version_info.major == 2:
+	from urllib2 import Request, urlopen
+else:
+	import urllib.request
+
+def download(url, _file=None):
+	if not _file:
+		if sys.version_info.major == 2:
+			req = Request(url)
+			x = urlopen(req)
+			data = x.read()
+			x.close()
+			return data
+		else:
+			return urllib.request.urlopen(url).read().decode('utf-8')
+	else:
+		if sys.version_info.major == 3:
+			urllib.request.urlretrieve(url, _file)
+			return True
+		else:
+			pass
+		return True
 
 def local_output(what, flush=True):
 	pass
