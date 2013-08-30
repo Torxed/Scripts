@@ -57,7 +57,7 @@ def Import(name):
 						key, val = func, ''
 					tmp[key] = val
 				index_functions = tmp
-				local_output(str(index_functions)+'\n')
+				#local_output(str(index_functions)+'\n')
 			else:
 				index_functions = {}
 				
