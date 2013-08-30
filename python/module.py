@@ -79,7 +79,7 @@ def Import(name):
 		local_output('MOD::ERR::Could not find module/function\n')
 		return None
 	
-	local_output('MOD::IMP::'+str(module_file))
+	local_output('MOD::IMP::'+str(module_file)+'\n')
 	if module:
 		return __import__(module_file)
 	else:
