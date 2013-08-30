@@ -24,17 +24,16 @@ def download(url, _file=None):
 		return True
 
 def local_output(what, flush=True):
-	pass
-	#sys.stdout.write(what)
-	#if flush:
-	#	sys.stdout.flush()	
+	sys.stdout.write(what)
+	if flush:
+		sys.stdout.flush()	
 
 def Import(name):
-	local_output('Importing: ' + name + '\n')
+	local_output('MOD::REQ::' + name + '\n')
 	module = True
 	module_file = None
 	if not isfile(name + '.py'):
-		local_output(' - Downloading INDEX\n')
+		local_output('MOD::GET::INDEX\n')
 		index = download('https://raw.github.com/Torxed/Scripts/master/INDEX')
 		if not index:
 			if isfile('INDEX'):
@@ -42,6 +41,7 @@ def Import(name):
 					index = INDEX.read()
 			else:
 				return None
+
 		for line in index.split('\n'):
 			if len(line) <= 0 or line[0] == '#': continue
 		
@@ -63,9 +63,9 @@ def Import(name):
 				
 			if name in module_name or name in index_functions:
 				if name in module_name:
-					local_output(' - Translated "' + name + '" into ' + module_name + '.py\n')
+					local_output('MOD::MAP::FILE::"' + name + '"[>>]' + module_name + '.py\n')
 				else:
-					local_output(' - Translated function "' + name + '" into ' + module_name + '.py\n')
+					local_output('MOD::MAP::FUNC::"' + name + '"[>>]' + module_name + '.py\n')
 				module_file = module_name
 				with open(module_file + '.py', 'w') as fh_module:
 					fh_module.write(download(module_link.strip()))
@@ -76,9 +76,10 @@ def Import(name):
 		module_file = name
 
 	if module_file == None or not isfile(module_file + '.py'):
-		local_output(' ! Could not located what you were looking for.\n')
+		local_output('MOD::ERR::Could not find module/function\n')
 		return None
-		
+	
+	local_output('MOD::IMP::'+str(module_file))
 	if module:
 		return __import__(module_file)
 	else:
