@@ -1,0 +1,8 @@
+#!/bin/bash
+
+## Whenever the touchpad freaks out
+## and spontaniously starts not going left (until you move it a bit right)
+## then this is the fix.. stupid dell hardware..
+
+sudo rmmod psmouse
+sudo modprobe psmouse

@@ -1,7 +1,10 @@
 #!/bin/bash
 
-ORIGINAL_ISO="$HOME/Downloads/archlinux-2013.07.01-dual.iso"
-DESTINATION_DIR="$HOME/Downloads"
+#Dependencies:
+# squashfs-tools cdrkit
+
+ORIGINAL_ISO="/arch.iso"
+DESTINATION_DIR="$HOME/isos"
 GIT_FOLDER="$HOME/github"
 
 sudo umount /mnt/archiso &>/dev/null

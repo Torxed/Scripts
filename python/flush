@@ -1,0 +1,6 @@
+#!/bin/bash
+sudo netctl stop-all
+sudo killall dhclient
+sudo ip route flush all
+sudo ip addr flush dev eno1
+sudo echo '' | sudo tee /etc/resolv.conf

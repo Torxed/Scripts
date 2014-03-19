@@ -1,0 +1,4 @@
+#!/bin/bash
+#sudo macchanger --mac=d0:67:e5:4c:e2:09 wlp3s0
+sudo netctl start $1
+sudo dhclient wlp3s0
