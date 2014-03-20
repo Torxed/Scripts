@@ -1,9 +1,9 @@
 #!/usr/bin/python
 import sys, notify2, re
 from subprocess import Popen, STDOUT, PIPE
-from os.path import abspath
+from os.path import abspath, expanduser
 
-with open(abspath('~/.asoundrc'), 'r') as fh:
+with open(abspath(expanduser('~') + '/.asoundrc'), 'r') as fh:
 	conf = fh.read()
 try:
 	soundcard = str((int(re.findall('pcm.card [0-9]', conf)[0][-1]) + 1)%3)
@@ -40,7 +40,7 @@ elif sys.argv[1] == 'down':
 	handle.stdout.close()
 elif sys.argv[1] == 'switch':	
 
-	with open(abspath('~/.asoundrc'), 'w') as fh:
+	with open(abspath(expanduser('~') + '/.asoundrc'), 'w') as fh:
 		for line in conf.split('\n'):
 			if 'pcm.card' in line:
 				notify2.init("slimSOUND")
