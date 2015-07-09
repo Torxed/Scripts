@@ -1,0 +1,4 @@
+#!/bin/bash
+sudo modprobe -r psmouse
+sudo modprobe psmouse
+xinput set-int-prop "AlpsPS/2 ALPS DualPoint TouchPad" "Device Enabled" 8 1
