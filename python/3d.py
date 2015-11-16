@@ -76,7 +76,7 @@ class Ball(object):
 
 
 	def draw(self):
-		print dir(self.sphere)
+		print(dir(self.sphere))
 
 class Torus(object):
 	def __init__(self, radius, inner_radius, slices, inner_slices):
@@ -196,7 +196,7 @@ class gui (pyglet.window.Window):
 		return pyglet.event.EVENT_HANDLED
 
 	def on_close(self):
-		print 'closing'
+		print('closing')
 		self.alive = 0
 
 	def on_mouse_drag(self, x, y, dx, dy, buttons, modifiers):
