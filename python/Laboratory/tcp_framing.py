@@ -15,6 +15,18 @@ from collections import OrderedDict as odict
 ## Oh and last but not least, drink more caffeine when you start to think you can create 1/2 byte frames with struck.pack
 ##
 
+## useful links:
+#- http://www.cplusplus.com/reference/climits/
+#- https://docs.python.org/3/library/struct.html
+#- http://www.ietf.org/rfc/rfc791.txt
+#- http://www.ietf.org/rfc/rfc793.txt
+#- http://www.binarytides.com/raw-socket-programming-in-python-linux/
+#- http://www.binarytides.com/python-syn-flood-program-raw-sockets-linux/
+#- http://wiki.mikrotik.com/images/f/fc/Image2001.gif
+#- https://en.wikipedia.org/wiki/Transmission_Control_Protocol
+#- https://play.google.com/music/listen#/artist/Acirogtcm4nkyvhghrt3bguv3tu/Aphex+Twin
+#- http://www.thegeekstuff.com/2012/05/ip-header-checksum/
+
 def HalfBit(num, name=''):
 	val = bin(num)[2:]
 	while len(val) < 4:
@@ -74,8 +86,8 @@ def checksum(msg):
 s = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_TCP)
 s.setsockopt(socket.IPPROTO_IP, socket.IP_HDRINCL, 1)
 
-source_ip = socket.gethostbyname('hvornum.se')
-dest_ip = socket.gethostbyname('www.google.se')
+source_ip = socket.gethostbyname('192.168.1.102')
+dest_ip = socket.gethostbyname('hvornum.se')
 
 ## IP Header:
 #    0               1                   2                   3   
