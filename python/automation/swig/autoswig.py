@@ -7,6 +7,7 @@ from time import strftime
 
 project_name = None # Will be fetched from each .i file
 setup_template = None # Will be populated in the first cleanup() call
+mute_output = True
 
 def isfile(path):
 	return glob.glob(path)
@@ -20,7 +21,7 @@ def run(cmd):
 	handle.stdout.close()
 	handle.stderr.close()
 
-	if len(output) or len(errors):
+	if (not mute_output and len(output)) or len(errors):
 		print('Output:',output)
 		print('Errors:',errors)
 
@@ -31,9 +32,21 @@ def package():
 		makedirs(backup_dst)
 		move(dst, abspath(backup_dst))
 		
-	makedirs(dst)	
+	makedirs(dst)
 	move(abspath('./'+project_name+'.py'), dst)
 	move(glob.glob(abspath('./_'+project_name+'*.so'))[0], dst)
+
+	functions = []
+	with open(abspath('./'+project_name+'.h'), 'r') as fh:
+		for line in fh:
+			_type_, name = line.split(' ',1)
+			name, params = name.split('(',1)
+			functions.append(name)
+
+	if len(functions):
+		with open(abspath(dst+'/__init__.py'), 'w') as fh:
+			fh.write('from ' + project_name+'.'+project_name + ' import ' + ', '.join(functions) + '\n')
+			fh.write('__all__ = [\'' + ', \''.join(functions) + '\']\n')
 
 def cleanup(save_setups=True):
 	global project_name
@@ -58,7 +71,7 @@ def cleanup(save_setups=True):
 from distutils.core import setup, Extension
 
 
-example_module = Extension('_%%moduleName%%',
+module_data = Extension('_%%moduleName%%',
                            sources=['%%moduleName%%_wrap.c', '%%moduleName%%.c'],
                            )
 
@@ -66,7 +79,7 @@ setup (name = '%%moduleName%%',
        version = '0.1',
        author      = "SWIG Docs",
        description = "Simple swig example from docs",
-       ext_modules = [%%moduleName%%_module],
+       ext_modules = [module_data],
        py_modules = ["%%moduleName%%"]
        )
 
