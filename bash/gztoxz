@@ -1,0 +1,4 @@
+#!/bin/bash
+set -e
+set -o pipefail
+gzip -dc $1 | xz > ${%.gz}.xz
