@@ -13,8 +13,10 @@ sudo mkarchroot -C /etc/pacman_32.conf -M /etc/makepkg_32.conf /opt/arch32/root 
 
 mkdir -p /tmp/32bit
 mkdir -p /tmp/64bit
-pacman --root /opt/arch32 --config /etc/pacman_32.conf --cachedir /tmp/32bit/ -S -w awesome xorg-xinit xorg-server xorg-server-utils base base-devel
-pacman --cachedir /tmp/64bit/ -S -w awesome xorg-xinit xorg-server xorg-server-utils base base-devel
+
+pacman --root /opt/arch32 --config /etc/pacman_32.conf --cachedir /tmp/32bit/ -S -w awesome xorg-xinit xorg-server xorg-server-utils base base-devel readline linux-api-headers glibc mkinitcpio device-mapper binutils tzdata iana-etc filesystem ncurses acl attr gmp libcap zlib gdm db perl openssl systemd libgcrypt popt libutil-linux sh udev bash mpfr gcc-libs glib2 libunistring pcre less pam iptables sysfsutils shadow coreutils libsystemd util-linux linux-firmware kmod gzip thin-provisioning-tools groff libpipeline file iproute2 openresolv libarchive curl gpgme pacman-mirrorlist archlinux-keyring hwids krb5 findutils libusb awk m4 diffutils sed gcc-libs libmpc tar guile libldap
+
+pacman --cachedir /tmp/64bit/ -S -w awesome xorg-xinit xorg-server xorg-server-utils base base-devel readline linux-api-headers glibc mkinitcpio device-mapper binutils tzdata iana-etc filesystem ncurses acl attr gmp libcap zlib gdm db perl openssl systemd libgcrypt popt libutil-linux sh udev bash mpfr gcc-libs glib2 libunistring pcre less pam iptables sysfsutils shadow coreutils libsystemd util-linux linux-firmware kmod gzip thin-provisioning-tools groff libpipeline file iproute2 openresolv libarchive curl gpgme pacman-mirrorlist archlinux-keyring hwids krb5 findutils libusb awk m4 diffutils sed gcc-libs libmpc tar guile libldap
 
 mkdir -p ~/customrepo/x86_64/
 mkdir -p ~/customrepo/i686/
