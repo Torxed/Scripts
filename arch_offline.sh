@@ -1,35 +1,61 @@
-cp /etc/pacman.conf /etc/pacman_32.conf
-# modify /etc/pacman_32.conf:
-# Architecture = auto -> i686
+# cp /etc/pacman.conf /etc/pacman_32.conf      # <--- Uncomment for first ever build/setup
+# cp /etc/makepkg.conf /etc/makepkg_32.conf    # <--- Uncomment for first ever build/setup
 
-cp /etc/makepkg.conf /etc/makepkg_32.conf
-# modify /etc/makepkgs_32.conf:
-# CARCH="i686"
-# CHOST="i686-unknown-linux-gnu"
-# CFLAGS="-march=i686 -mtune=generic -O2 -pipe"
-# CXXFLAGS="-march=i686 -mtune=generic -O2 -pipe"
-
-sudo mkarchroot -C /etc/pacman_32.conf -M /etc/makepkg_32.conf /opt/arch32/root base base-devel
-
+# Setup stuff
 mkdir -p /tmp/32bit
 mkdir -p /tmp/64bit
+mkdir -p ~/customrepo/x86_64
+mkdir -p ~/customrepo/i686
 
-pacman --root /opt/arch32 --config /etc/pacman_32.conf --cachedir /tmp/32bit/ -S -w awesome xorg-xinit xorg-server xorg-server-utils base base-devel readline linux-api-headers glibc mkinitcpio device-mapper binutils tzdata iana-etc filesystem ncurses acl attr gmp libcap zlib gdm db perl openssl systemd libgcrypt popt libutil-linux sh udev bash mpfr gcc-libs glib2 libunistring pcre less pam iptables sysfsutils shadow coreutils libsystemd util-linux linux-firmware kmod gzip thin-provisioning-tools groff libpipeline file iproute2 openresolv libarchive curl gpgme pacman-mirrorlist archlinux-keyring hwids krb5 findutils libusb awk m4 diffutils sed gcc-libs libmpc tar guile libldap
+#--sudo mkarchroot -C /etc/pacman_32.conf -M /etc/makepkg_32.conf /opt/arch32/root base base-devel
 
-pacman --cachedir /tmp/64bit/ -S -w awesome xorg-xinit xorg-server xorg-server-utils base base-devel readline linux-api-headers glibc mkinitcpio device-mapper binutils tzdata iana-etc filesystem ncurses acl attr gmp libcap zlib gdm db perl openssl systemd libgcrypt popt libutil-linux sh udev bash mpfr gcc-libs glib2 libunistring pcre less pam iptables sysfsutils shadow coreutils libsystemd util-linux linux-firmware kmod gzip thin-provisioning-tools groff libpipeline file iproute2 openresolv libarchive curl gpgme pacman-mirrorlist archlinux-keyring hwids krb5 findutils libusb awk m4 diffutils sed gcc-libs libmpc tar guile libldap
+# Clean out old crap from previous build
+rm -rf airootfs/root/customrepo/
+rm /tmp/32bit/*
+rm /tmp/64bit/*
+rm ~/customrepo/x86_64/*
+rm ~/customrepo/i686/*
 
-mkdir -p ~/customrepo/x86_64/
-mkdir -p ~/customrepo/i686/
+# Download 64 and 32bit packages needed for a live-CD+base install of Arch to a HDD
+# (remember, most of these packages are used by "base" and "base-devel" which are
+# absolut dependencies of what Arch will require you to have. nano, xorg-server and a few
+# others are stuff I like to have)
+# --> expac -S '%E' -l '\n' <package> <package> ... 
+#     this would solve the depedency issue nicely.
+rm -rf /tmp/pacdb; mkdir /tmp/pacdb
+pacman --dbpath /tmp/pacdb/ -Syu -w --cachedir /tmp/64bit/ awesome xorg-xinit xorg-server xorg-server-utils xterm nano screen sudo iptables xf86-video-intel mesa-libgl dhclient dnsmasq darkhttpd openssh sshfs python git openssl gcc base base-devel grub os-prober
 
+rm -rf /tmp/pacdb; mkdir /tmp/pacdb
+pacman --dbpath /tmp/pacdb/ -Syu -w --root /opt/aur/root --config /etc/pacman_32.conf --cachedir /tmp/32bit/ awesome xorg-xinit xorg-server xorg-server-utils xterm nano screen sudo iptables xf86-video-intel mesa-libgl dhclient dnsmasq darkhttpd openssh sshfs python git openssl gcc base base-devel grub os-prober
+
+# These are now placed in /tmp/32bit and /tmp/64bit respectively.
+# So we copy these "offline packages" to the custom repo we're trying to build
 cp /tmp/32bit/* ~/customrepo/i686/
 cp /tmp/64bit/* ~/customrepo/x86_64/
 
-repo-add ~/customrepo/i686/customrepo.db.tar.gz ~/customrepo/i686/*.pkg.tar.xz
+# Then when all packages are in a neat folder structure that pacman likes..
+# we use repo-add to create a package database that pacman will look for.
+# Then we copy sad custom repo called "customrepo" to our live-cd /root folder for later use.
 repo-add ~/customrepo/x86_64/customrepo.db.tar.gz ~/customrepo/x86_64/*.pkg.tar.xz
+repo-add ~/customrepo/i686/customrepo.db.tar.gz ~/customrepo/i686/*.pkg.tar.xz
+cp -r ~/customrepo airootfs/root/
 
-# Now, modify /etc/pacman.conf ** ON A LIVE CD ALREADY RUNNING **
+# We clean out any old builds
+# and we build a new Live-CD (with our customrepo in /root)
+rm -rf work/*
+./build.sh -v
+
+# use 'cdw' or something to burn this DVD
+# Boot it, and modify /etc/pacman.conf to have the following:
+
 # [customrepo]
 # SigLevel = Optional TrustAll
-# Server = file:///tmp/usb/customrepo/$arch
+# Server = file:///root/customrepo/$arch
 
-# And make sure you've mounted the USB/CD/DVD under /tmp/usb <----
+# And when you're following "Beginners guide" in the Arch-Wiki,
+# and you hit the step "pacstrap -i /mnt base base-devel" DO THE FOLLOWING:
+#                                                                |
+#                                                               \/
+# pacstrap -i /mnt base base-devel grub os-prober xorg-server awesome nano screen ...
+#
+# Because it's a hell of a lot easier than trying to fiddle with the CD afterwards :P
