@@ -1,4 +1,11 @@
 <?php
+session_start();
+/*
+unset($_SESSION['temporarily_token']);
+unset($_SESSION['request_token_secret']);
+die();
+*/
+
 class oauth_client {
     function set_customer_key($key) {/*{{{*/
         $this->key = $key;
@@ -11,6 +18,9 @@ class oauth_client {
     }/*}}}*/
     function set_token($key) {/*{{{*/
         $this->token = $key;
+    }/*}}}*/
+    function get_apiURL() {/*{{{*/
+        return 'https://api.crew.dreamhack.se/';
     }/*}}}*/
 
     function request_token($callback_url) {/*{{{*/
@@ -28,11 +38,17 @@ class oauth_client {
             $parameters[urlencode($key)] = urlencode($line);
         }
 
-        $base_string = 'GET&'.urlencode('https://api.crew.dreamhack.se/oauth/request_token').'&'.urlencode(http_build_query($query));
+        $base_string = 'GET&'.urlencode($this->get_apiURL().'/oauth/request_token').'&'.urlencode(http_build_query($query));
 
         $query['oauth_signature'] = $this->sign($base_string, $this->secret,'');
         
-        $resp = file_get_contents("https://api.crew.dreamhack.se/oauth/request_token?".http_build_query($query));
+        $arrContextOptions=array(
+            "ssl"=>array(
+                "verify_peer"=>false,
+                "verify_peer_name"=>false,
+            ),
+        ); /** <--- Because shitty SSL certificate (sorry, but it is hehe) **/
+        $resp = file_get_contents($this->get_apiURL()."/oauth/request_token?".http_build_query($query), false, stream_context_create($arrContextOptions));
         $resp = json_decode($resp,true);
 
         return $resp;
@@ -55,10 +71,11 @@ class oauth_client {
         $parameters['oauth_verifier'] = urlencode($verifier);
         ksort($parameters);
 
-        $base_string = 'POST&'.urlencode('https://api.crew.dreamhack.se/oauth/access_token').'&'.urlencode(http_build_query($parameters));
+        $base_string = 'POST&'.urlencode($this->get_apiURL().'/oauth/access_token').'&'.urlencode(http_build_query($parameters));
         $query['oauth_signature'] = $this->sign($base_string, $this->secret,$this->token_secret);
         
-        $resp = $this->do_post_request("https://api.crew.dreamhack.se/oauth/access_token?".http_build_query($query),'oauth_verifier='.$verifier);
+        error_log($this->get_apiURL()."/oauth/access_token?".http_build_query($query),'oauth_verifier='.$verifie);
+        $resp = $this->do_post_request($this->get_apiURL()."/oauth/access_token?".http_build_query($query),'oauth_verifier='.$verifier);
         $resp = json_decode($resp,true);
 
         return $resp;
@@ -119,12 +136,6 @@ class oauth_client {
     }/*}}}*/
 
     function get($url) {/*{{{*/
-        $params = array(
-            'http' => array(
-                  'method' => 'GET',
-            )
-        );
-
         $query = array(
             'oauth_consumer_key'=>$this->key,
             'oauth_signature_method'=>'HMAC-SHA1',
@@ -146,75 +157,68 @@ class oauth_client {
         foreach($query as $key => $line)
             $query_string[] = "$key=\"$line\"";
 
-        $params['http']['header'] = 'Authorization: OAuth '.implode(',',$query_string)."\r\n";
-
-        $ctx = stream_context_create($params);
-        $fp = fopen($url, 'rb', false, $ctx);
-        if (!$fp) {
-            throw new Exception("Problem with $url, $php_errormsg");
-        }
-        $response = @stream_get_contents($fp);
-        if ($response === false) {
-            throw new Exception("Problem reading data from $url, $php_errormsg");
-        }
-
-        return json_decode($response,true);
+        $arrContextOptions=array(
+            'http'=>array(
+                'header'=>'Authorization: OAuth '.implode(',',$query_string)."\r\n"
+            ),
+            "ssl"=>array(
+                "verify_peer"=>false,
+                "verify_peer_name"=>false,
+            ),
+        ); /** <--- Because shitty SSL certificate (sorry, but it is hehe) **/
+        $resp = file_get_contents($url, false, stream_context_create($arrContextOptions));
+        $resp = json_decode($resp,true);
+        return $resp;
     }/*}}}*/
 }
 
-// This is a example how to use permanent ACCESS_TOKENs 
+// This is a example how to use temporarily tokens for communication. The have a expire time on 1 hour after last access.
 
 // Documentation is found here: https://api.crew.dreamhack.se/oauth/Introduction%20to%20OAuth.md
 
 $oauth = new oauth_client();
 
 // Set developer keys, used to identify the developer and application
-    $oauth->{'set_customer_key'}("--------");
-    $oauth->{'set_customer_secret'}("-------");
+    $oauth->{'set_customer_key'}("---");
+    $oauth->{'set_customer_secret'}("---"); # KEEP SECRET!!!
 
 // STEP 2 - Catch the returning user form the login page and save the new keys
     if ( isset($_GET['oauth_token']) && isset($_GET['oauth_verifier']) ) {
-        // Use the saved secret from STEP 1
-        $oauth->set_token_secret(file_get_contents('request_token_secret'));
-        unlink('request_token_secret');
-
-        // Use the new token to request an access_token
-        $access_token = $oauth->access_token($_GET['oauth_token'],$_GET['oauth_verifier']);
-
-        // Save the access_token
-        file_put_contents('access_token',json_encode($access_token));
+        // Save the token
+        $_SESSION['temporarily_token'] = $_GET['oauth_token'];
 
         // Redirect the user to the normal page, not neccerary but looks nicer
-        header('Location: https://'.$_SERVER['HTTP_HOST'].$_SERVER['SCRIPT_NAME'] ); 
+        header('Location: https://'.$_SERVER['HTTP_HOST'].$_SERVER['SCRIPT_NAME'] );
         die();
     }
 
 // Try to get a saved access_token, this is normaly done in the session
-    $access_token = json_decode(@file_get_contents('access_token'),true);
+    $temp_token = isset($_SESSION['temporarily_token']) ? $_SESSION['temporarily_token'] : false;
 
 // STEP 1 - Get a request_token, this is used for enabling the login page
-    if (!$access_token) {
+    if (!$temp_token) {
         $request_token = $oauth->request_token('https://'.$_SERVER['HTTP_HOST'].$_SERVER['SCRIPT_NAME']);
 
         // Save the secret (This should be done in the session or in the database!)
-        file_put_contents('request_token_secret',$request_token['oauth_token_secret']);
+        $_SESSION['request_token_secret'] = $request_token['oauth_token_secret'];
 
         // Redirect the user to the login page
-        header("Location: https://api.crew.dreamhack.se/oauth/authorize?oauth_token=".$request_token['oauth_token']);
+        header("Location: ".$oauth->{'get_apiURL'}()."/oauth/authorize?oauth_token=".$request_token['oauth_token']);
 
         die();
     }
 
-// STEP 3 - Use the access_token to request data
-    $oauth->set_token_secret($access_token['oauth_token_secret']);
-    $oauth->set_token($access_token['oauth_token']);
+// STEP 3 - Use the temporarily_token to request data
+    $oauth->set_token_secret( $_SESSION['request_token_secret']);
+    $oauth->set_token($temp_token);
 
     // Get the desired data
-    $result = $oauth->{'get'}('https://api.crew.dreamhack.se/1/user/get/635');
+    $result = $oauth->{'get'}('https://api.crew.dreamhack.se/1/user/get/');
 
     // If there is a problem with the current session, delete keys
     if ( isset($result['oauth_problem']) ) {
-        unlink('access_token');
+        unset($_SESSION['temporarily_token']);
+        unset($_SESSION['request_token_secret']);
     }
 
     print_r($result);
