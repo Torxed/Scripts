@@ -1,0 +1,12 @@
+[Unit]
+Description=Simple IP notification script
+Wants=network.target
+
+[Service]
+Type=simple
+PIDFile=/run/ipNotify.pid
+ExecStart=/usr/bin/curl http://upstream-hpst/ip.php?ip=$(ip addr | grep -oE "\b([0-9]{1,3}\.){3}[0-9]{1,3}\b" | awk '!/^[0-9]*: ?lo|link\/ether/ {if($0 != "127.0.0.1" && $0 !~ ".255") print $0}')
+ExecStop=/usr/bin/killall upstream-
+
+[Install]
+WantedBy=multi-user.target
