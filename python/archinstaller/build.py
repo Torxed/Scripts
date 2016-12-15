@@ -1,5 +1,7 @@
 #!/usr/bin/python3
 ## Description: a python copy of archiso/build.sh from the baseline branch.
+##  - https://wiki.archlinux.org/index.php/archiso
+
 import platform
 from subprocess import Popen, STDOUT, PIPE
 from time import strftime
