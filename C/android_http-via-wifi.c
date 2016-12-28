@@ -1,6 +1,17 @@
 #include <SoftwareSerial.h>
 SoftwareSerial ESPserial(2, 3); // RX | TX
 
+/*
+	TODO references:
+	 * http://www.martyncurrey.com/arduino-esp8266/ (Mostly followed this with my own tweaks)
+	 * http://www.esp8266.com/wiki/doku.php?id=getting-started-with-the-esp8266 (And used this for actual pinout ref)
+	 * (good picture, missing one pinout from above) http://www.martyncurrey.com/wp-content/uploads/2015/01/Arduino-to-ESP8266.jpg
+	 * http://www.elec-cafe.com/esp8266-at-command/
+	 * http://www.elec-cafe.com/esp8266-esp-01-firmware-update/
+	 * https://blogs.msdn.microsoft.com/abhinaba/2016/01/23/esp8266-wifi-with-arduino-uno-and-nano/
+	 * http://www.martyncurrey.com/arduino-to-esp8266-serial-commincation/#comment-6712
+*/
+
 String content = "";
 int state = 0;
 char character;
