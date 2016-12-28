@@ -2,54 +2,75 @@
 SoftwareSerial ESPserial(2, 3); // RX | TX
 
 String content = "";
+int state = 0;
 char character;
 
-void wificmd(String cmd) {
+void clearSerial() {
+	Serial.flush();
+}
+
+void clearWifi() {
+	ESPserial.flush();
+}
+
+bool wificmd(String cmd, String verify) {
 	ESPserial.println("AT+"+cmd);
+	if(verify != "") {
+		if(ESPserial.find("OK")){
+			return true;
+		}
+		return false;
+	}
+	return true;
 }
 
 void resetWifi() {
-	wificmd("RST");
+	wificmd("RST", "");
 }
 
-void connectWifi() {
-	wificmd("CWMODE=1");
+bool connectWifi() {
+	wificmd("CWMODE=1","OK");
 	delay(1000);
-	wificmd("CWJAP=\"SSID\",\"PASSWD\"");
+	return wificmd("CWJAP=\"SSID\",\"PASSWD\"", "OK");
 }
 
-void httpGet () {
-	wificmd("CIPSTART=\"TCP\",\"example.com\",80");//start a TCP connection.
-	if( ESPserial.find("OK")) {
-		Serial.println("TCP connection ready");
+int getState () {
+	if( !wificmd("CIPSTART=\"TCP\",\"example.com\",8080", "OK")) { //start a TCP connection.
+		return 0;
 	}
 	delay(1000);
-	String getRequest = "GET / HTTP/1.0\r\n" \
-						"Host: example.com\r\n" \
-						"Accept: */*\r\n" \
-						"\r\n";
-	// + data;
-	//"Content-Length: " + data.length() + "\r\n" +
-	//"Content-Type: application/x-www-form-urlencoded\r\n" +
+	String getRequest = "STATE";
 	
 	ESPserial.print("AT+CIPSEND=");
 	ESPserial.println(getRequest.length());
 	delay(500);
 
 	if(ESPserial.find(">")) {
-		Serial.println("Sending..");
+		clearWifi();
+		//Serial.println("Sending..");
 		ESPserial.print(getRequest);
 
 		if( ESPserial.find("SEND OK")) {
-			Serial.println("Packet sent");
+			//Serial.println("Packet sent");
+			String tmpResp = "";
 			while (ESPserial.available()) {
-				String tmpResp = ESPserial.readString();
-				Serial.println(tmpResp);
+				tmpResp = ESPserial.readString();
 			}
 			// close the connection
-			wificmd("CIPCLOSE");
+			if(wificmd("CIPCLOSE", "OK")) {
+				if (tmpResp.substring(11) == "1") {
+					return 1;
+				} else {
+					return 0;
+				}
+			} else {
+				Serial.println("Error closing connection");
+			}
+		} else {
+			Serial.println("Error sending data");
 		}
 	}
+	return 0;
 }
  
 void setup() 
@@ -58,10 +79,15 @@ void setup()
     //while (!Serial)   { ; }
  
     ESPserial.begin(115200);
- 
-	resetWifi();
-	connectWifi();
 	
+	while (1) {
+		resetWifi();
+		if(connectWifi()) {
+			break;
+		}
+		delay(5000);
+	}
+	clearWifi();
 }
 
 bool getSerialData() {
@@ -94,11 +120,17 @@ void loop()
 	//String content = "";
 	//char character;
 
+	/* DEBUG:
 	if(getSerialData()) {
 		if (content.startsWith("get")) {
-			httpGet();
+			state = getState();
+			if (state) {
+				Serial.println("Powering on");
+			} else {
+				Serial.println("Powering down");
+			}
 		} else {
-			Serial.print("ToWifi: " + content);
+			//Serial.print("ToWifi: " + content);
 			ESPserial.print(content);
 		}
 	}
@@ -106,4 +138,12 @@ void loop()
 	if(getWifiData()) {
 		Serial.print(content);
 	}
+	*/
+	state = getState();
+	if (state) {
+		Serial.println("Powering on");
+	} else {
+		Serial.println("Powering down");
+	}
+	delay(2000);
 }
