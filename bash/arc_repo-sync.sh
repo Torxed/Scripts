@@ -6,7 +6,7 @@ HOST="ftp.lysator.liu.se"
 SOURCE="rsync://$HOST/pub/archlinux"
 DEST='/tmp/mirrors/archlinux'
 BW_LIMIT='5000' #kb/s
-REPOS='core extra'
+REPOS='core extra community'
 RSYNC_OPTS="-rtlHq --delete-after --delay-updates --copy-links --safe-links --max-delete=1000 --bwlimit=${BW_LIMIT} --delete-excluded --exclude=i686"
 LCK_FLE='/var/run/arc_repo-sync.lck'
 
