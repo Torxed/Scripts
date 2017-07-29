@@ -1,7 +1,6 @@
 [Unit]
 Description=Adds the local IP to the welcome screen
-After=basic.target
-Before=multi-user.target
+After=network.target
 
 [Service]
 Type=oneshot
