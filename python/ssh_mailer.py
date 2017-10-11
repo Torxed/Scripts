@@ -7,19 +7,26 @@ from systemd.journal import JournalHandler
 from sys import argv
 from email.mime.multipart import MIMEMultipart
 
-IP = os.environ['SSH_CONNECTION'].split()[0]
-USER = os.environ['USER']
-
-DOMAIN = 'domain.com'
-FROM = 'ssh@'+DOMAIN
-FROM_FANCY = 'SSH Guard'
-TO = 'reciever'
-TO_DOMAIN = 'gmail.com'
-TO_FANCY = 'Users Name'
-
 log = logging.getLogger('ssh-gateway')
 log.addHandler(JournalHandler())
 log.setLevel(logging.WARNING)
+
+if 'SSH_CONNECTION' in os.environ:
+        IP = os.environ['SSH_CONNECTION'].split()[0]
+elif 'PAM_RHOST' in os.environ:
+        IP = os.environ['PAM_RHOST']
+else:
+        IP = 'Unknown' # Hard to detect, maybe dump all of netstat -an | grep :22?
+        log.warning("{}".format(os.environ))
+
+if 'USER' in os.environ:
+        USER = os.environ['USER']
+elif 'PAM_USER' in os.environ:
+        USER = os.environ['PAM_USER']
+else:
+        USER = 'root' # Just default and scare the shit out of us!
+        log.warning("{}".format(os.environ))
+
 log.warning("User {} Logged in from {}.".format(USER, IP))
 
 email = MIMEMultipart()
