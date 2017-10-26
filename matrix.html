@@ -1,0 +1,201 @@
+<html>
+	<head>
+		<link href='/resources/fonts/matrix.ttf' rel='stylesheet' type='text/css' />
+		<meta name="apple-mobile-web-app-capable" content="yes" />
+		<meta name="mobile-web-app-capable" content="yes" />
+		<meta name="description" content="A Matrix screensaver thing ála HTML+JS, a curiosity project by Hvornum." />
+		<meta name="robots" content="nofollow" />
+		<meta name="googlebot" content="nofollow" />
+		<meta name="google" content="nositelinkssearchbox" />
+		<meta name="google" content="notranslate" />
+
+		<style type="text/css">
+			@font-face {
+				font-family: 'Matrix';
+				font-style: normal;
+				src: url('/resources/fonts/matrix.ttf') format('truetype');
+			}
+			html {
+				height: 100%;
+			}
+			body {
+				background-color: #000000;
+			}
+			#myCanvas {
+				position: absolute;
+				top: 0px;
+				left: 0px;
+				font-family: 'Matrix';
+			}
+		</style>
+
+		<script src="//code.jquery.com/jquery-1.11.3.min.js"></script>
+		<script type="text/javascript">
+
+			function len(arr) {
+				return Object.keys(arr).length
+			}
+
+			function resizeCanvas() {
+				var c = $('#myCanvas');
+				var ct = c.get(0).getContext('2d');
+				var container = $(c).parent();
+
+				c.attr('width',  $( window ).width() ); //max width = screen.availWidth
+				c.attr('height', $( window ).height() ); //max height
+
+				ct.fillStyle = "black";
+				ct.rect(0, 0, $( window ).width(), $( window ).height());
+				ct.fill();
+			}
+
+			function randInt(min, max) {
+				return Math.random() * (max - min) + min;
+			}
+
+			$( window ).resize(function() {
+				resizeCanvas();
+			});
+
+			$(document).ready(function(){
+				//$('.plwid').animate({ left: '+=120' }, 400 );
+				var letters = {}
+				var serial = 0;
+				var maxLetters = 130;
+				var fontSize = 14;
+				var canvas = document.getElementById("myCanvas");
+				var ctx = canvas.getContext("2d");
+				var tailLength = 150;
+
+				resizeCanvas();
+
+				function generateLetter() {
+					// This function will only generate characters once the pool is small enough to populate.
+					// In practice it would be faster if we could do a event-based creation making this function
+					// dormant after it's created the maximum ammount of characters on the screen.
+					// But implementing that would create more code than I could bother with for a "loj" project.
+					if (len(letters) < maxLetters) {
+						// Random X position of this particular random character
+						var xPos = Math.floor(Math.random() * ($(window).width()-fontSize))
+						// How fast will this character travel dowwards, 50-100 miliseconds
+						// ("travel in miliseconds" is more like, how often does it travel charsize(pixels) every Z ms)
+						var updateIntv = 100-Math.floor(Math.random() * 50)
+						// And then we create sad CHAR of a random character at above position.
+						letters[serial] = {x: xPos,
+										   y: 0,
+										   character: String.fromCharCode(randInt(97, 122)),
+										   updateInterval: updateIntv,
+										   lastUpdate: (new Date()).getTime()
+										  }
+						// Each character will have a uniqueue serial rounding at
+						// double the length of the maximum ammount of CHAR's allowed,
+						// otherwise we'd might get timing issues in deleting/updating/drawing them vs creating them.
+						// And this could cause a stuck "pixel" :)
+						serial++;
+						serial=serial%(maxLetters*2);
+					}
+					setTimeout(function() {
+						generateLetter();
+					}, 15);
+				}
+
+				function drawLetters() {
+					// If we can fetch a contextual object of the canvas it means this browsers isn't from the stone age.
+					if (canvas.getContext) {
+						var currTime = (new Date()).getTime();
+						// Iterate over each character in the letters dictionary.
+						for (var key in letters) {
+							// Check if this ms "clock" is old enough that the letter wants to be updated.
+							if (currTime-letters[key].lastUpdate > letters[key].updateInterval) {
+								// If so, update the position with X pixels (in this case, the fontSize)
+								// But if the position Y exceeds WindowHeight+TailLength+FontSize (last is there for buffert)
+								// then we'll delete the character from our dictionary and add a new char above.
+								letters[key].y = letters[key].y+fontSize
+								if (letters[key].y > $(window).height()+tailLength+fontSize) {
+									delete letters[key];
+									continue;
+								} else {
+									var opacity = 0.2; //20% visible at the tail tip
+													   //    fear not, a black block will tidy up after.
+
+									// Draw a clear-up block ish 10px behind the tail tip
+									// ( Yea this would in some cases cause it to erase another character behind but w/e )
+									ctx.beginPath();
+									ctx.fillStyle = "black";
+									ctx.rect(letters[key].x, letters[key].y-(tailLength+fontSize), fontSize, fontSize);
+									ctx.fill();
+
+									// Begin drawing the actual tail containing of three steps
+									// 1: Create the Linear Gradient on a Y axis dowards
+									// 2: Create the color stops within that cradient (from fully black -> transparent)
+									//    the reason for the transparancy on the bottom is so that the actual CHAR is
+									//    still completely green as it should be, otherwise it would be eaten by blackness.
+									// 3: Create the rectangle and call .fill() on it to populate it with the gradient.
+									ctx.beginPath();
+									var gradient=ctx.createLinearGradient(0, letters[key].y-tailLength, 0, letters[key].y);
+									gradient.addColorStop(0,'rgba(0,0,0,'+opacity+')');
+									gradient.addColorStop(1,'transparent');
+									ctx.fillStyle = gradient;
+									ctx.rect(letters[key].x, letters[key].y-tailLength, (fontSize/2)+1, tailLength);
+									ctx.fill();
+
+									// Then we create the "matrix" character.
+									// Note that this will leave a ghost character copy of its own behind it
+									// for every iteration, enabling us to put the transparent tail to tidy it up :)
+									ctx.fillStyle = "green";
+									ctx.font = fontSize+"px Matrix";
+									ctx.fillText(letters[key].character, letters[key].x, letters[key].y);
+									letters[key].lastUpdate = currTime;
+								}
+							}
+						}
+					}
+					setTimeout(function() {
+						// Loop this above code each 25ms
+						drawLetters();
+					}, 25);
+				}
+
+				// This is just here for convenience,
+				// since the page doesn't do much really..
+				// we might as well use it as a screensaver on the
+				// second screen while playing a game or something.
+				function toggleFullScreen() {
+					// I had a smaller version that did the same before,
+					// but this could should supposedly work on iOS with chrome...
+					// It doesn't hoever so the credit goes to: http://www.html5rocks.com/en/mobile/fullscreen/
+					// This code appers to support it (but doesn't work either): http://stackoverflow.com/a/3900711/929999
+					//
+					// Oh well, works in the standard desktop browsers so i'm happy enough!
+					var doc = window.document;
+					var docEl = doc.documentElement;
+
+					var requestFullScreen = docEl.requestFullscreen || docEl.mozRequestFullScreen || docEl.webkitRequestFullScreen || docEl.msRequestFullscreen;
+					var cancelFullScreen = doc.exitFullscreen || doc.mozCancelFullScreen || doc.webkitExitFullscreen || doc.msExitFullscreen;
+
+					if(!doc.fullscreenElement && !doc.mozFullScreenElement && !doc.webkitFullscreenElement && !doc.msFullscreenElement) {
+						requestFullScreen.call(docEl);
+					}
+					else {
+						cancelFullScreen.call(doc);
+					}
+				}
+
+				// These two functions initiates the never ending animation loop.
+				// That's.. well all there is to it, enjoy (or don't) the screensaver thingy.
+				generateLetter();
+				drawLetters();
+
+				// Oh also bind the fullscreen thing!
+				$("#myCanvas").on("click", function() {
+					toggleFullScreen();
+				});
+			});
+		</script>
+	</head>
+	<body>
+		<div style="font-family: Matrix;">.</div>
+		<canvas id="myCanvas">
+		</canvas>
+	</body>
+</html>
