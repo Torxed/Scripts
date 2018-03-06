@@ -17,5 +17,5 @@ WantedBy=multi-user.target
 
 
 ## Debugging Screen session
-#ExecStart=/usr/bin/screen -S "dhclient" -Dm bash -c 'dhclient %I -d -pf /run/dhclient-%I.pid'
+#ExecStart=/usr/bin/screen -S "dhclient" -D -m /usr/bin/dhclient %I -d -pf /run/dhclient-%I.pid
 #ExecStop=/usr/bin/screen -X -S "dhclient" quit
