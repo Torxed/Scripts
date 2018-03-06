@@ -1,0 +1,12 @@
+[Unit]
+Description=half assed service script for slimDHCP
+Wants=network.target
+Before=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/screen -S "slimDHCP" -D -m python3 /path/to/slimDHCP/slimDHCP.py
+ExecStop=/usr/bin/screen -X -S "slimDHCP" quit
+
+[Install]
+WantedBy=multi-user.target
