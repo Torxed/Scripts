@@ -1,0 +1,21 @@
+[Unit]
+Description=dhclient on %I instead of dhcpcd (because it fails on some ISP providers)
+Wants=network.target
+Before=network.target
+BindsTo=sys-subsystem-net-devices-%i.device
+After=sys-subsystem-net-devices-%i.device
+
+[Service]
+Type=simple
+PIDFile=/run/dhclient-%I.pid
+ExecStart=/usr/bin/dhclient %I -pf /var/run/dhclient-%I.pid'
+ExecStop=/usr/bin/kill $(cat /run/dhclient-$I.pid)
+
+[Install]
+WantedBy=multi-user.target
+
+
+
+## Debugging Screen session
+#ExecStart=/usr/bin/screen -S "dhclient" -Dm bash -c 'dhclient %I -d -pf /run/dhclient-%I.pid'
+#ExecStop=/usr/bin/screen -X -S "dhclient" quit
