@@ -1,0 +1,4 @@
+# Place in: ~/.local/share/systemd/user/xsession.target
+[Unit]
+Description=Xsession running
+BindsTo=graphical-session.target
