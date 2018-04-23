@@ -1,0 +1,12 @@
+# Place in ~/.local/share/systemd/user/x0vncserver.service
+[Unit]
+Description=Remote desktop service (VNC)
+PartOf=graphical-session.target
+
+[Service]
+Type=forking
+StandardOutput=journal
+ExecStart=/usr/bin/sh -c '/usr/bin/x0vncserver -display :0 -rfbport 5900 -passwordfile ~/.vnc/passwd &'
+
+[Install]
+WantedBy=xsession.target
