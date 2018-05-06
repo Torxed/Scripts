@@ -2,35 +2,32 @@
 
 # A func to download, build ...
 build_aur () {
-      old_dir=`pwd`
-      # Prep with a build-user:
-      # (assumes %wheel is not uncommented in sudoers)
-      useradd -m -G wheel builder
-      sed -i 's/# %wheel ALL=(ALL) NO/%wheel ALL=(ALL) NO/' /etc/sudoers
+    old_dir=`pwd`
+    # Prep with a build-user:
+    useradd -m -G wheel builder
+    sed -i 's/# %wheel ALL=(ALL) NO/%wheel ALL=(ALL) NO/' /etc/sudoers
 
-      cd /tmp
-      rm -rf $1 $1.tar.gz
-      wget "https://aur.archlinux.org/cgit/aur.git/snapshot/$1.tar.gz"
-      tar xvzf "$1.tar.gz"
+    cd /tmp
+    rm -rf $1 $1.tar.gz
+    wget "https://aur.archlinux.org/cgit/aur.git/snapshot/$1.tar.gz"
+    tar xvzf "$1.tar.gz"
 
-      cd $1
-      build_dir=$(pwd)
-      chown -R builder.builder /tmp/$1
-      su - builder -c "(cd ${build_dir}; makepkg -s --noconfirm)"
+    cd $1
+    build_dir=$(pwd)
+    chown -R builder.builder /tmp/$1
+    su - builder -c "(cd ${build_dir}; makepkg -s --noconfirm)"
 
-      if [[ $3 -eq "yes" ]]; then
-          pacman -U --noconfirm *.xz
-      fi
+    if [[ $3 -eq "yes" ]]; then
+        pacman -U --noconfirm *.xz
+    fi  
 
-      sh -c "mv *.xz $2/$1.xz"
+    sh -c "mv *.xz ${old_dir}/$2/$1.pkg.tar.xz"
 
-      cd ${old_dir}
-      userdel builder
-      sed -i 's/%wheel ALL=(ALL) NO/# %wheel ALL=(ALL) NO/' /etc/sudoers
-      
-      rm -rf /home/builder
-      rm -rf $1
-      rm $1.tar.gz
+    cd ${old_dir}
+    userdel builder
+    rm -rf /home/builder
+    rm -rf /tmp/$1
+    rm /tmp/$1.tar.gz
 }
 
 echo "Starting to sync upstream changes to mirror."
