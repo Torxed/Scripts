@@ -1,0 +1,3 @@
+[arch_offline]
+SigLevel = Optional TrustAll
+Server = http://<hostname>/archlinux/$repo/os/$arch
