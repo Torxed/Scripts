@@ -1,5 +1,8 @@
 #!/bin/bash
 
+work_dir=$1
+arch=$2
+
 # A func to download, build ...
 build_aur () {
     old_dir=`pwd`
@@ -17,9 +20,11 @@ build_aur () {
     chown -R builder.builder /tmp/$1
     su - builder -c "(cd ${build_dir}; makepkg -s --noconfirm)"
 
-    if [[ $3 -eq "yes" ]]; then
-        pacman -U --noconfirm *.xz
-    fi  
+    if [[ -n $3 ]]; then
+        mkdir -p $3
+        sh -c "cp *.xz $3/$1.pkg.tar.xz"
+        sh -c "repo-add --new $3/aur_offline.db.tar.gz $3/*.xz"
+    fi
 
     sh -c "mv *.xz ${old_dir}/$2/$1.pkg.tar.xz"
 
@@ -31,14 +36,25 @@ build_aur () {
 }
 
 echo "Starting to sync upstream changes to mirror."
+
 mkdir -p ${work_dir}/${arch}/airootfs/srv/http/archlinux/arch_offline/os/x86_64
 rm -rf /tmp/sync /tmp/local
 
-pacman --noconfirm --dbpath /tmp/ -Syu -w --cachedir ${work_dir}/${arch}/airootfs/srv/http/archlinux/arch_offline/os/${arch} base base-devel git python python-systemd nano sudo iptables dhclient dnsmasq openssh sshfs openssl openvpn gcc openvpn powerdns postgresql sqlite go c-ares http-parser libuv nodejs-less mariadb memcached bzip2 glib2 libev lua51 ragel zlib >/dev/null
+pacman --noconfirm --dbpath /tmp/ -Syu -w --cachedir ${work_dir}/${arch}/airootfs/srv/http/archlinux/arch_offline/os/${arch} base base-devel syslinux haveged intel-ucode memtest86+ mkinitcpio-nfs-utils nbd zsh git python python-systemd nano sudo iptables dhclient dnsmasq openssh sshfs openssl openvpn gcc openvpn powerdns postgresql sqlite go c-ares http-parser libuv nodejs-less mariadb memcached bzip2 glib2 libev lua51 ragel zlib >/dev/null
+pacman --noconfirm --dbpath /tmp/ -Syu -w --cachedir ${work_dir}/${arch}/airootfs/srv/http/archlinux/arch_offline/os/${arch} $(cat packages.both)
+
 build_aur "gogs-git" "${work_dir}/${arch}/airootfs/srv/http/archlinux/arch_offline/os/${arch}"
-build_aur "lighttpd2-git" "${work_dir}/${arch}/airootfs/srv/http/archlinux/arch_offline/os/${arch}" "yes"
+build_aur "lighttpd2-git" "${work_dir}/${arch}/airootfs/srv/http/archlinux/arch_offline/os/${arch}" "/tmp/aur_offline"
+
+repo_is_live=$(cat ${work_dir}/pacman.conf | grep '[aur_offline]')
+if [[ -n ${repo_is_live} ]]; then
+    echo "Adding offline mirror to build bubble"
+    echo "[aur_offline]" >> ${work_dir}/pacman.conf
+    echo "Server = file:///tmp/aur_offline" >> ${work_dir}/pacman.conf
+    echo "SigLevel = Optional TrustAll" >> ${work_dir}/pacman.conf
+fi
+pacman --config ${work_dir}/pacman.conf -Sy
 
 sh -c "repo-add --new ${work_dir}/${arch}/airootfs/srv/http/archlinux/arch_offline/os/${arch}/arch_offline.db.tar.gz ${work_dir}/${arch}/airootfs/srv/http/archlinux/arch_offline/os/${arch}/*.pkg.tar.xz" >/dev/null 2>&1
-chown -R www-data.www-data ${work_dir}/${arch}/airootfs/srv/http/archlinux
 
 echo "Done syncing offline mirror."
