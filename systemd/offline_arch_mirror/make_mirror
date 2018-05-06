@@ -31,14 +31,14 @@ build_aur () {
 }
 
 echo "Starting to sync upstream changes to mirror."
-mkdir -p /srv/http/archlinux/arch_offline/os/x86_64
+mkdir -p ${work_dir}/${arch}/airootfs/srv/http/archlinux/arch_offline/os/x86_64
 rm -rf /tmp/sync /tmp/local
 
-pacman --noconfirm --dbpath /tmp/ -Syu -w --cachedir /srv/http/archlinux/arch_offline/os/x86_64 base base-devel git python python-systemd nano sudo iptables dhclient dnsmasq openssh sshfs openssl openvpn gcc openvpn powerdns postgresql sqlite go nodejs-less mariadb memcached bzip2 glib2 libev lua51 ragel zlib >/dev/null
-#build_aur "gogs-git"
-#build_aur "lighttpd2"
+pacman --noconfirm --dbpath /tmp/ -Syu -w --cachedir ${work_dir}/${arch}/airootfs/srv/http/archlinux/arch_offline/os/${arch} base base-devel git python python-systemd nano sudo iptables dhclient dnsmasq openssh sshfs openssl openvpn gcc openvpn powerdns postgresql sqlite go c-ares http-parser libuv nodejs-less mariadb memcached bzip2 glib2 libev lua51 ragel zlib >/dev/null
+build_aur "gogs-git" "${work_dir}/${arch}/airootfs/srv/http/archlinux/arch_offline/os/${arch}"
+build_aur "lighttpd2-git" "${work_dir}/${arch}/airootfs/srv/http/archlinux/arch_offline/os/${arch}" "yes"
 
-sh -c 'repo-add --new /srv/http/archlinux/arch_offline/os/x86_64/arch_offline.db.tar.gz /srv/http/archlinux/arch_offline/os/x86_64/*.pkg.tar.xz' >/dev/null 2>&1
-chown -R www-data.www-data /srv/http/archlinux
+sh -c "repo-add --new ${work_dir}/${arch}/airootfs/srv/http/archlinux/arch_offline/os/${arch}/arch_offline.db.tar.gz ${work_dir}/${arch}/airootfs/srv/http/archlinux/arch_offline/os/${arch}/*.pkg.tar.xz" >/dev/null 2>&1
+chown -R www-data.www-data ${work_dir}/${arch}/airootfs/srv/http/archlinux
 
-echo "Done syncing offline mirror"
+echo "Done syncing offline mirror."
