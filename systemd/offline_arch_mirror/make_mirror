@@ -46,7 +46,7 @@ build_aur "gogs-git" "${host_dir}"
 build_aur "lighttpd2-git" "${host_dir}"
 
 echo " => Adding packages to offline database"
-sh -c "repo-add --new ${host_dir}/arch_offline.db.tar.gz ${host_dir}/*.pkg.tar.xz" >/dev/null 2>&1
+sh -c "repo-add ${host_dir}/arch_offline.db.tar.gz ${host_dir}/*.pkg.tar.xz" >/dev/null 2>&1
 
 pacman --config ${work_dir}/pacman.conf -Sy
 pacman -Sy
