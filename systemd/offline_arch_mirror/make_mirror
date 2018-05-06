@@ -18,6 +18,10 @@ build_aur () {
       chown -R builder.builder /tmp/$1
       su - builder -c "(cd ${build_dir}; makepkg -s --noconfirm)"
 
+      if [[ $3 -eq "yes" ]]; then
+          pacman -U --noconfirm *.xz
+      fi
+
       sh -c "mv *.xz $2/$1.xz"
 
       cd ${old_dir}
