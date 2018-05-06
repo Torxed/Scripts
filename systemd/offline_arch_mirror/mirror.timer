@@ -1,0 +1,10 @@
+[Unit]
+Description=Sync arch_offline mirror every 24 h.
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=1440min
+Unit=mirror.service
+
+[Install]
+WantedBy=timers.target
