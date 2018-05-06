@@ -1,0 +1,26 @@
+#!/bin/bash
+
+# A func to download, build ...
+build_aur () {
+      old_dir=`pwd`
+      cd /tmp
+      rm -rf $1 $1.tar.gz
+      wget "https://aur.archlinux.org/cgit/aur.git/snapshot/$1.tar.gz"
+      tar xvzf "$1.tar.gz"
+      cd $1
+      makepkg -s --noconfirm
+      cd ${old_dir}
+}
+
+echo "Starting to sync upstream changes to mirror."
+mkdir -p /srv/http/archlinux/arch_offline/os/x86_64
+rm -rf /tmp/sync /tmp/local
+
+pacman --noconfirm --dbpath /tmp/ -Syu -w --cachedir /srv/http/archlinux/arch_offline/os/x86_64 base base-devel git python python-systemd nano sudo iptables dhclient dnsmasq openssh sshfs openssl openvpn gcc openvpn powerdns postgresql sqlite go nodejs-less mariadb memcached bzip2 glib2 libev lua51 ragel zlib >/dev/null
+#build_aur "gogs-git"
+#build_aur "lighttpd2"
+
+sh -c 'repo-add --new /srv/http/archlinux/arch_offline/os/x86_64/arch_offline.db.tar.gz /srv/http/archlinux/arch_offline/os/x86_64/*.pkg.tar.xz' >/dev/null 2>&1
+chown -R www-data.www-data /srv/http/archlinux
+
+echo "Done syncing offline mirror"
