@@ -41,19 +41,9 @@ rm -rf /tmp/sync /tmp/local
 echo " => Retrieving packages"
 pacman --noconfirm --dbpath /tmp/ -Syu -w --cachedir ${host_dir} base base-devel syslinux efitools haveged intel-ucode memtest86+ mkinitcpio-nfs-utils nbd zsh git python python-systemd nano sudo iptables dhclient dnsmasq openssh sshfs openssl openvpn gcc openvpn powerdns postgresql sqlite go c-ares http-parser libuv nodejs-less mariadb memcached bzip2 glib2 libev lua51 ragel zlib >/dev/null 2>&1
 
-#echo " => Retrieving ISO specific packages"
-#pacman --noconfirm --dbpath /tmp/ -Syu -w --cachedir ${host_dir} $(cat ${work_dir}/../packages.both)
-
 echo " => Building AUR (Adding packages to packages.both as we go along)"
 build_aur "gogs-git" "${host_dir}"
 build_aur "lighttpd2-git" "${host_dir}"
-
-#if [[ -z $(cat ${work_dir}/pacman.conf | grep '\[aur_offline\]') ]]; then
-#    echo "Adding offline mirror to build bubble"
-#    echo "[aur_offline]" >> ${work_dir}/pacman.conf
-#    echo "Server = file:///tmp/aur_offline" >> ${work_dir}/pacman.conf
-#    echo "SigLevel = Optional TrustAll" >> ${work_dir}/pacman.conf
-#fi
 
 echo " => Adding packages to offline database"
 sh -c "repo-add --new ${host_dir}/arch_offline.db.tar.gz ${host_dir}/*.pkg.tar.xz" >/dev/null 2>&1
