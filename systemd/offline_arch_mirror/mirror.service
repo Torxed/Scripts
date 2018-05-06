@@ -1,0 +1,7 @@
+[Unit]
+Description=Syncing arch_offline mirror every 24h
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/make_mirror
+#User=root
