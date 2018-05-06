@@ -18,12 +18,18 @@ build_aur () {
     cd $1
     build_dir=$(pwd)
     chown -R builder.builder /tmp/$1
-    su - builder -c "(cd ${build_dir}; makepkg -s --noconfirm)"
+    echo " => Buiilding $1"
+    su - builder -c "(cd ${build_dir}; makepkg -s --noconfirm)" >/dev/null 2>&1
 
     if [[ -n $3 ]]; then
+        echo " => Adding $1 to local AUR mirror"
         mkdir -p $3
         sh -c "cp *.xz $3/$1.pkg.tar.xz"
-        sh -c "repo-add --new $3/aur_offline.db.tar.gz $3/*.xz"
+        sh -c "repo-add $3/aur_offline.db.tar.gz $3/*.xz"
+        if [[ -z $(cat ${old_dir}/packages.both | grep $1) ]]; then
+            echo " => Adding $1 to packages.both (from AUR)"
+            echo "$1" >> ${old_dir}/packages.both
+        fi
     fi
 
     sh -c "mv *.xz ${old_dir}/$2/$1.pkg.tar.xz"
@@ -40,21 +46,26 @@ echo "Starting to sync upstream changes to mirror."
 mkdir -p ${work_dir}/${arch}/airootfs/srv/http/archlinux/arch_offline/os/x86_64
 rm -rf /tmp/sync /tmp/local
 
-pacman --noconfirm --dbpath /tmp/ -Syu -w --cachedir ${work_dir}/${arch}/airootfs/srv/http/archlinux/arch_offline/os/${arch} base base-devel syslinux haveged intel-ucode memtest86+ mkinitcpio-nfs-utils nbd zsh git python python-systemd nano sudo iptables dhclient dnsmasq openssh sshfs openssl openvpn gcc openvpn powerdns postgresql sqlite go c-ares http-parser libuv nodejs-less mariadb memcached bzip2 glib2 libev lua51 ragel zlib >/dev/null
-pacman --noconfirm --dbpath /tmp/ -Syu -w --cachedir ${work_dir}/${arch}/airootfs/srv/http/archlinux/arch_offline/os/${arch} $(cat packages.both)
+echo " => Retrieving packages"
+pacman --noconfirm --dbpath /tmp/ -Syu -w --cachedir ${work_dir}/${arch}/airootfs/srv/http/archlinux/arch_offline/os/${arch} base base-devel syslinux efitools haveged intel-ucode memtest86+ mkinitcpio-nfs-utils nbd zsh git python python-systemd nano sudo iptables dhclient dnsmasq openssh sshfs openssl openvpn gcc openvpn powerdns postgresql sqlite go c-ares http-parser libuv nodejs-less mariadb memcached bzip2 glib2 libev lua51 ragel zlib >/dev/null 2>&1
 
+echo " => Retrieving ISO specific packages"
+pacman --noconfirm --dbpath /tmp/ -Syu -w --cachedir ${work_dir}/${arch}/airootfs/srv/http/archlinux/arch_offline/os/${arch} $(cat ${work_dir}/../packages.both)
+
+echo " => Building AUR (Adding packages to packages.both as we go along)"
 build_aur "gogs-git" "${work_dir}/${arch}/airootfs/srv/http/archlinux/arch_offline/os/${arch}"
 build_aur "lighttpd2-git" "${work_dir}/${arch}/airootfs/srv/http/archlinux/arch_offline/os/${arch}" "/tmp/aur_offline"
 
-repo_is_live=$(cat ${work_dir}/pacman.conf | grep '[aur_offline]')
-if [[ -n ${repo_is_live} ]]; then
+if [[ -z $(cat ${work_dir}/pacman.conf | grep '\[aur_offline\]') ]]; then
     echo "Adding offline mirror to build bubble"
     echo "[aur_offline]" >> ${work_dir}/pacman.conf
     echo "Server = file:///tmp/aur_offline" >> ${work_dir}/pacman.conf
     echo "SigLevel = Optional TrustAll" >> ${work_dir}/pacman.conf
 fi
-pacman --config ${work_dir}/pacman.conf -Sy
 
+echo " => Adding packages to offline database"
 sh -c "repo-add --new ${work_dir}/${arch}/airootfs/srv/http/archlinux/arch_offline/os/${arch}/arch_offline.db.tar.gz ${work_dir}/${arch}/airootfs/srv/http/archlinux/arch_offline/os/${arch}/*.pkg.tar.xz" >/dev/null 2>&1
 
+pacman --config ${work_dir}/pacman.conf -Sy
+pacman -Sy
 echo "Done syncing offline mirror."
