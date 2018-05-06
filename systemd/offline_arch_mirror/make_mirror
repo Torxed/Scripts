@@ -24,7 +24,7 @@ build_aur () {
     echo " => Buiilding ${package}"
     su - builder -c "(cd ${build_dir}; makepkg -s --noconfirm)" >/dev/null 2>&1
 
-    sh -c "mv *.xz ${old_dir}/$2/$1.pkg.tar.xz"
+    sh -c "mv *.xz ${host_dir}/${package}.pkg.tar.xz"
 
     cd ${old_dir}
     userdel builder
