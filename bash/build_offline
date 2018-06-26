@@ -40,4 +40,4 @@ mkdir -p ${FINAL_DESTINATION}
 rm ${FINAL_DESTINATION}/archlinux_offline*
 mv out/* ${FINAL_DESTINATION}/${FINAL_NAME}
 
-#rm -rf ${BUILD_DIR}
+rm -rf ${BUILD_DIR}
