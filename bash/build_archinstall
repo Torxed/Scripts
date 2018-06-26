@@ -2,7 +2,7 @@
 
 BUILD_DIR="/tmp/archlive_unattended"
 FINAL_DESTINATION="/srv/http/default/archiso"
-FINAL_NAME="archlinux_archinstall-$(date +'%m.%d.%Y').iso"
+FINAL_NAME="archlinux_archinstall-$(date +'%d.%m.%Y').iso"
 
 ## Clean slate
 rm -rf ${BUILD_DIR}/
