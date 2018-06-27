@@ -1,0 +1,10 @@
+[Unit]
+Description=Builds a guided archinstall version of the official ArchLinux ISO
+
+[Timer]
+OnCalendar=*-*-* 00:01:00
+Persistent=True
+Unit=build_guided.service
+
+[Install]
+WantedBy=timers.target
