@@ -1,0 +1,6 @@
+[Unit]
+Description=Builds a unattended version of the official ArchLinux ISO
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/build_unattended
