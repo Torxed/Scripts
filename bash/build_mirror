@@ -1,0 +1,37 @@
+#!/bin/bash
+
+BUILD_DIR="/tmp/archlive_mirror"
+FINAL_DESTINATION="/srv/http/default/archiso"
+FINAL_NAME="archlinux_mirror-$(date +'%d.%m.%Y').iso"
+
+## Clean slate
+rm -rf ${BUILD_DIR}/
+mkdir -p ${BUILD_DIR}
+cp -r /usr/share/archiso/configs/offline_releng/* ${BUILD_DIR}/
+
+cd ${BUILD_DIR}
+## == PATCHES ==
+##
+#* ISSUE: https://bugs.archlinux.org/task/59135
+sed -i '/zd1211-firmware/d' packages.x86_64
+#* ISSUE: https://bugs.archlinux.org/task/59137
+sed -i 's/pcmcia//g' mkinitcpio.conf
+##
+## ^-----------------^
+echo -e "python\ntcpdump\n" >> packages.x86_64
+
+## == Install AUR package lighttpd2-git and
+##    enable it within the rootfs system.
+echo "lighttpd2-git" >> packages.aur
+cat <<EOF >> ./airootfs/root/customize_airootfs.sh
+systemctl enable lighttpd2
+EOF
+
+rm -v work*
+./build.sh -v || { ./build.sh -v || { echo ' [!] Could not build past checksum.'; exit 1; } }
+
+mkdir -p ${FINAL_DESTINATION}
+rm ${FINAL_DESTINATION}/archlinux_mirror*
+mv out/* ${FINAL_DESTINATION}/${FINAL_NAME}
+
+rm -rf ${BUILD_DIR}
