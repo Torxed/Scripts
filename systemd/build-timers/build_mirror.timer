@@ -1,0 +1,10 @@
+[Unit]
+Description=Builds a offline mirror of the official ArchLinux ISO
+
+[Timer]
+OnCalendar=*-*-* 00:20:00
+Persistent=True
+Unit=build_offline.service
+
+[Install]
+WantedBy=timers.target
