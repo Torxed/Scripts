@@ -14,6 +14,8 @@ cd ${BUILD_DIR}
 ##
 #* ISSUE: https://bugs.archlinux.org/task/59135
 sed -i '/zd1211-firmware/d' packages.x86_64
+#* ISSUE: https://bugs.archlinux.org/task/62279
+sed -i '/wpa_actiond/d' packages.x86_64
 #* ISSUE: https://bugs.archlinux.org/task/59137
 sed -i 's/pcmcia//g' mkinitcpio.conf
 ##
@@ -27,7 +29,7 @@ chmod +x ~/archinstall/archinstall.py
 EOF
 
 mkdir ./airootfs/etc/skel
-echo '[[ -z $DISPLAY && $XDG_VTNR -eq 1 ]] && sh -c "~/archinstall/archinstall.py"' >> ./airootfs/etc/skel/.zprofile
+echo '[[ -z $DISPLAY && $XDG_VTNR -eq 1 ]] && sh -c "~/archinstall/archinstall.py --default"' >> ./airootfs/etc/skel/.zprofile
 
 rm -v work*; ./build.sh -v
 
