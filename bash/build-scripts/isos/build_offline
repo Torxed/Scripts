@@ -14,6 +14,8 @@ cd ${BUILD_DIR}
 ##
 #* ISSUE: https://bugs.archlinux.org/task/59135
 sed -i '/zd1211-firmware/d' packages.x86_64
+#* ISSUE: https://bugs.archlinux.org/task/62279
+sed -i '/wpa_actiond/d' packages.x86_64
 #* ISSUE: https://bugs.archlinux.org/task/59137
 sed -i 's/pcmcia//g' mkinitcpio.conf
 ##
