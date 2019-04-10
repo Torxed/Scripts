@@ -1,0 +1,8 @@
+#!/bin/sh
+
+exec 2>&1
+
+PHP_FCGI_CHILDREN=2 \
+PHP_FCGI_MAX_REQUESTS=10000 \
+LANG=C LC_ALL=C \
+exec /usr/bin/spawn-fcgi -n -s /tmp/php.sock -u www-data -U www-data -- /usr/bin/php-cgi
