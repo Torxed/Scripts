@@ -1,0 +1,2 @@
+# I know this technically isn't systemd. but auditd is close enough.. for now.
+-a exit,always -S execve
