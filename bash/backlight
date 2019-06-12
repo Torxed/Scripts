@@ -1,0 +1,12 @@
+#!/bin/bash
+#
+# Grabs the highest brightness, converts that to a percentage multiplier.
+# Uses that multiplier to set the users percentage input value into brightness.
+
+# This works on most non-hybrid laptops:
+# xbacklight -set $1
+
+MAX=$(cat /sys/class/backlight/intel_backlight/max_brightness)
+percentage=$(python -c "print(int((${MAX}/100)*$1) % (${MAX}+1))")
+
+echo ${percentage} | sudo tee -a /sys/class/backlight/intel_backlight/brightness > /dev/null
