@@ -63,6 +63,7 @@ class HTTPResponse():
 		self.raw_headers = b''
 		self.raw_payload = b''
 		self.raw_parsed = 0
+		self.raw_header_ending = 0
 
 		self.headers = {}
 		self.payload = b''
@@ -77,13 +78,13 @@ class HTTPResponse():
 	def get_all(self):
 		while not self.peak():
 			self.recv(timeout=5)
+		self.clean_payload()
 		return True
 
 	def peak(self):
 		if b'\r\n\r\n' in self.raw_response and len(self.headers) <= 0:
-			print(self.raw_response)
 			self.raw_headers, self.raw_payload = self.raw_response.split(b'\r\n\r\n', 1)
-			print('Raw payload:', self.raw_payload)
+			self.raw_header_ending += len(self.raw_headers) + len('\r\n\r\n') + len(self.raw_payload)
 
 			for index, item in enumerate(self.raw_headers.split(b'\r\n')):
 				if type(item) == bytes: item = item.decode(ENCODING)
@@ -94,10 +95,10 @@ class HTTPResponse():
 				if ':' in item:
 					key, val = item.split(':',1)
 					self.headers[key.lower()] = val.strip()
-			
-			self.parse_headers()
+		elif len(self.headers):
+			self.raw_payload += self.raw_response[self.raw_header_ending:]
 
-		print(self.headers)
+		self.parse_headers()
 		return self.delivered
 		#self.clean_payload()
 
@@ -117,19 +118,21 @@ class HTTPResponse():
 				if int(length, 16) == 0:
 					self.delivered = True
 				self.payload += payload
-			if key[:len('content-length')] == 'content-length':
-				print(val, len(self.raw_payload), val == len(self.raw_payload))
 			elif key[:len('content-length')] == 'content-length' and val == len(self.raw_payload):
-				print('Delivered')
+				self.payload = self.raw_payload
 				self.delivered = True
-#	def clean_payload(self):
-#		if 'content-type' in self.headers and self.headers['content-type'] == 'application/json':
-#			try:
-#				self.payload = json.loads(self.raw_payload)
-#			except:
-#				self.payload = self.raw_payload
-#		else:
-#			self.payload = self.raw_payload
+
+	def clean_payload(self):
+		if 'content-type' in self.headers and self.headers['content-type'] == 'application/json':
+			try:
+				self.payload = json.loads(self.raw_payload)
+			except:
+				self.payload = self.raw_payload
+		else:
+			self.payload = self.raw_payload
+
+	def __repr__(self):
+		return json.dumps({'_headers' : self.headers, '_body' : self.payload.decode(ENCODING)}, indent=4)
 
 request = HTTPRequest(('hvornum.se', 443), url='/ip/')
 response = HTTPResponse(request.socket, request.raw_response)
