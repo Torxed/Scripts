@@ -25,6 +25,9 @@ if isfile('/tmp/sshmailer.json'):
 			pass # Invalid format, probably a crash or something.
 
 t = time()
+DOMAIN = 'example.com'
+FROM = f'ssh@{DOMAIN}'
+TO = f'reciever@example.com'
 meta = {
 	'USER' : None,
 	'IP' : None,
@@ -32,30 +35,44 @@ meta = {
 	'ENVIRON' : os.environ,
 	'PARAMS' : argv,
 	'USERS' : psutil.users(),
+	'DOMAIN' : DOMAIN,
+	'SSH_MAIL_USER_FROM' : 'ssh',
+	'SSH_MAIL_USER_TO' : 'reciever',
+	'SSH_MAIL_USER_TODOMAIN' : 'example.com',
 	'TIME' : '{}-{}-{} {}:{}:{}'.format(*localtime(t)),
 	'RAW_TIME' : t,
 	'SUBJECT' : None,
-	'Message-ID' : '<{}.{}@domain.com>'.format(time(), md5(b'user@domain.com'+b'reciever@domain.com').hexdigest())
+	'COUNTRY' : None,
+	'Message-ID' : '<{}.{}@{}>'.format(time(), md5(bytes(f'{FROM}.{TO}', 'UTF-8')).hexdigest(), DOMAIN)
 }
 
 if 'PAM_TYPE' in os.environ and os.environ['PAM_TYPE'] == 'close_session':
-	meta['SUBJECT'] = 'SSH Logout: {USER}@domain.com'.format(**meta)
+	meta['SUBJECT'] = 'SSH Logout: {USER}@{DOMAIN}'.format(**meta)
 else:
-	meta['SUBJECT'] = 'SSH Login: {USER}@domain.com'.format(**meta)
+	meta['SUBJECT'] = 'SSH Login: {USER}@{DOMAIN}'.format(**meta)
 
 if 'SSH_CONNECTION' in os.environ:
 	meta['IP'] = os.environ['SSH_CONNECTION'].split()[0]
 elif 'PAM_RHOST' in os.environ:
 	meta['IP'] = os.environ['PAM_RHOST']
 else:
-	meta['IP'] = 'Unknown' # Hard to detect, maybe dump all of netstat -an | grep :22?
+	meta['IP'] = '127.0.0.1' # Hard to detect, maybe dump all of netstat -an | grep :22?
 	log.warning("{}".format(os.environ))
+
+if isfile('/usr/share/GeoIP/GeoIP.dat'):
+	import pygeoip
+	gi = pygeoip.GeoIP('/usr/share/GeoIP/GeoIP.dat')
+	meta['COUNTRY'] = gi.country_name_by_addr(meta['IP'])
+else:
+	meta['COUNTRY'] = "Unknown"
 
 if meta['IP'] in cache and time()-cache[meta['IP']]['time']<86400:
 	meta['RESOLV'] = cache[meta['IP']]['resolved']
 else:
 	try:
 		meta['RESOLV'] = socket.gethostbyaddr(meta['IP'])
+		if meta['RESOLV']:
+			meta['RESOLV'] = ':'.join(str(x) for x in meta['RESOLV'])
 		cache[meta['IP']] = {'time' : time(), 'resolved' : meta['RESOLV']}
 	except:
 		meta['RESOLV'] = meta['IP']
@@ -82,26 +99,28 @@ log.warning("User {USER} Logged in from {IP}.".format(**meta))
 ## TODO:(S/MIME) https://tools.ietf.org/doc/python-m2crypto/howto.smime.html
 ## TODO: https://support.rackspace.com/how-to/create-an-spf-txt-record/
 ##
-## https://toolbox.googleapps.com/apps/checkmx/check?domain=domain.com&dkim_selector=
+## https://toolbox.googleapps.com/apps/checkmx/check?domain={DOMAIN}&dkim_selector=
 ## https://github.com/PowerDNS/pdns/issues/2881
 
 email = MIMEMultipart('alternative')
-email['Subject'] = "SSH Login: {USER}@domain.com".format(**meta)
-email['From'] = "SSH Guard <user@domain.com>"
-email['To'] = "Anton Hvornum <reciever@domain.com>"
+email['Subject'] = "SSH Login: {USER}@{DOMAIN}".format(**meta)
+email['From'] = "SSH Guard <{SSH_MAIL_USER_FROM}@{DOMAIN}>".format(**meta)
+email['To'] = "Anton Hvornum <{SSH_MAIL_USER_TO}@{SSH_MAIL_USER_TODOMAIN}>".format(**meta)
 email['Message-ID'] = meta['Message-ID']
-email.preamble = 'SSH Login {USER}@domain.com'.format(**meta)
+email.preamble = 'SSH Login {USER}@{DOMAIN}'.format(**meta)
 
 t = time()
 text = """\
 The following information is available:
- * Remote-IP: {IP}
- * Resolves to: {RESOLV}
+ * Remote-IP: {IP} [{COUNTRY}] ({RESOLV})
  * Time of occurance: {TIME} ({RAW_TIME})
  * Environment variable: {ENVIRON}
  * Parameters: {PARAMS}
  * Logged On Users: {USERS}
 """.format(**meta)
+
+if meta['COUNTRY'].lower() != 'sweden':
+	meta['COUNTRY'] = '<font color="red">{COUNTRY}</font>'.format(**meta)
 
 html = """\
 <html>
@@ -112,8 +131,7 @@ html = """\
 		<div>
 			<h3>The following information is available:</h3>
 			<ul>
-				<li><b><u>Remote-IP:</u></b> {IP}</li>
-				<li><b>Resolves to:</b> {RESOLV}</li>
+				<li><b><u>Remote-IP:</u></b> {IP} [{COUNTRY}] ({RESOLV})</li>
 				<li><b>Time of occurance:</b> {TIME} ({RAW_TIME})</li>
 				<li><b>Environment Variable:</b> {ENVIRON}</li>
 				<li><b>Parameters:</b> {PARAMS}</li>
@@ -136,7 +154,7 @@ with open("/etc/sshmailer/sshmailer.pem", 'rb') as fh:
 	dkim_private_key = fh.read()
 
 headers = ["To", "From", "Subject"]
-sig = dkim.sign(message=bytes(email.as_string(), 'UTF-8'), selector=b"default", domain=b"domain.com", privkey=dkim_private_key, include_headers=headers)
+sig = dkim.sign(message=bytes(email.as_string(), 'UTF-8'), selector=b"default", domain=bytes(meta['DOMAIN'], 'UTF-8'), privkey=dkim_private_key, include_headers=headers)
 email["DKIM-Signature"] = sig.lstrip(b"DKIM-Signature: ").decode('UTF-8')
 
 context = ssl.create_default_context()
@@ -147,7 +165,7 @@ for mx_record in dns.resolver.query('gmail.com', 'MX'):
 		if server.starttls(context=context)[0] != 220:
 			raise ValueError('Could not start TLS.')
 		#server = smtplib.SMTP_SSL(mail_server)
-		server.sendmail('user@domain.com', 'reciever@domain.com', email.as_string())
+		server.sendmail(FROM, TO, email.as_string())
 		server.quit()
 	#		server.close()
 		break
