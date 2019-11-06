@@ -60,22 +60,26 @@ class endpoint():
 			self.poller.register(self.socket.fileno(), EPOLLIN | EPOLLHUP)
 
 	def ssl_wrap(self, fileno=None):
-		print(f'{self} wrapping socket ({self.server, fileno})')
+		print(f'? {self} wrapping socket ({self.server, fileno})')
 		self.ssl_active = True
 		if self.kwargs['SERVER_SIDE']:
 		#if self.server:
 			context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
 			context.load_cert_chain(self.kwargs['ssl_cert'], self.kwargs['ssl_key'])
+			context.load_verify_locations(cafile='lets-encrypt-x3-cross-signed.pem')
 
 			if fileno in self.sockets:
-				print(f'Wrapping {self.sockets[fileno]["handle"]} as server_side=True')
-				self.sockets[fileno]['socket'] = context.wrap_socket(self.sockets[fileno]['socket'], server_side=True, do_handshake_on_connect=True, suppress_ragged_eofs=False)#, server_side=True)#, do_handshake_on_connect=self.kwargs['SSL_DO_HANDSHAKE'])
+				print(f'{self} is a server, wrapping as such.')
+				self.sockets[fileno]['socket'] = context.wrap_socket(self.sockets[fileno]['socket'], server_side=True, do_handshake_on_connect=True)#, server_side=True)#, do_handshake_on_connect=self.kwargs['SSL_DO_HANDSHAKE'])
 			else:
-				self.socket = context.wrap_socket(self.socket, server_side=True, do_handshake_on_connect=True, suppress_ragged_eofs=False)#, server_side=True)#, do_handshake_on_connect=self.kwargs['SSL_DO_HANDSHAKE'])
+				print(f'{self} is a child of server-side, so treating client as such.')
+				print(self.socket.fileno())
+				self.socket = context.wrap_socket(self.socket, server_side=True, do_handshake_on_connect=True)#, server_side=True)#, do_handshake_on_connect=self.kwargs['SSL_DO_HANDSHAKE'])
+				print(self.socket.recv(8192))
 		else:
-			print(f'Wrapping {self}.socket as server_side=False')
+			print(f'{self} is a pure client, wrapping it as a native client.')
 			context = ssl.create_default_context()
-			self.socket = context.wrap_socket(self.socket, server_hostname=self.host)#, do_handshake_on_connect=self.kwargs['SSL_DO_HANDSHAKE'])
+			self.socket = context.wrap_socket(self.socket, server_hostname=self.host, do_handshake_on_connect=True)#, do_handshake_on_connect=self.kwargs['SSL_DO_HANDSHAKE'])
 
 	def send(self, data, fileno=None, encoding='UTF-8'):
 		if type(data) == dict:
@@ -85,18 +89,18 @@ class endpoint():
 
 		if self.server:
 			if fileno:
-				print('* Sending data:', data)
+				print('[x] Data was sent.')
 				return self.sockets[fileno]['socket'].send(data)
 			else:
 				resp = -1
 				for fileno in self.sockets:
-					print('** Sending data:', data)
+					print('[x] Data was sent.')
 					r = self.sockets[fileno]['socket'].send(data)
 					if resp == -1 or r < resp:
 						resp = r
 				return resp
 		else:
-			print('*** Sending data:', data)
+			print('[x] Data was sent.')
 			return self.socket.send(data)
 
 	def relay(self, sender_fileno, data):
@@ -114,6 +118,7 @@ class endpoint():
 
 	def poll(self, timeout=0.25):
 		for fileno, event in self.poller.poll(timeout):
+			print(fileno)
 			if fileno == self.socket.fileno() and self.server:
 				ns, na = self.socket.accept()
 				fileno = ns.fileno()
@@ -147,7 +152,7 @@ class endpoint():
 								self.relay(self.socket.fileno(), data)
 							else:
 								print(f'{self} *Muted*: {data[:120]}')
-								mute = True
+							mute = True
 
 							if self.kwargs['SSL_BOTH_ENDPOINTS']:
 								print(f'{self} is triggering ssl_wrap() on endpoint {self.relay_target}')
@@ -162,6 +167,7 @@ class endpoint():
 					yield fileno, data
 
 			elif fileno in self.sockets:
+				print(fileno,'sent data')
 				data = self.sockets[fileno]['socket'].recv(8192)
 				if len(data) <= 0:
 					print(f'{self.sockets[fileno]["address"]} disconnected.')
@@ -197,7 +203,7 @@ class endpoint():
 					yield fileno, data
 
 print(' ** Setting up [local]')
-local = endpoint('', 587, server=True, ssl=False, ssl_cert='cert.pem', ssl_key='key.pem', UNIQUE_PER_CLIENT=True, SERVER_SIDE=True)
+local = endpoint('', 587, server=True, ssl=False, ssl_cert='2019-08-11.pem', ssl_key='2019-08-11.pem', UNIQUE_PER_CLIENT=True, SERVER_SIDE=True)
 local.attach(endpoint, 'smtp.gmail.com', 587, AUTO_RELAY=True, SSL_TRIGGERS={b'Ready to start TLS'}, SSL_BOTH_ENDPOINTS=True)
 
 while True:
