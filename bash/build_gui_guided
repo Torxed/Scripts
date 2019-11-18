@@ -1,0 +1,43 @@
+#!/bin/bash
+
+BUILD_DIR="/tmp/archlive_guided_gui"
+FINAL_DESTINATION="/srv/http/default/archiso"
+FINAL_NAME="archlinux_gui_guided-$(date +'%Y.%m.%d').iso"
+
+## Clean slate
+rm -rf ${BUILD_DIR}/
+mkdir -p ${BUILD_DIR}
+cp -r /usr/share/archiso/configs/releng/* ${BUILD_DIR}/
+
+cd ${BUILD_DIR}
+cat <<EOF >> ./packages.x86_64
+python
+python-systemd
+python-psutil
+git
+xorg-server
+xorg-xinit
+xorg-twm
+chromium
+nwpa_supplicant
+EOF
+
+cat <<EOF >> ./airootfs/root/customize_airootfs.sh
+cd /root
+git clone --recursive https://github.com/Torxed/archinstall_gui.git
+cp archinstall_gui/INSTALL/archinstall_gui.service /etc/systemd/system/
+cp archinstall_gui/INSTALL/xinitrc /etc/X11/xinit/
+cp -r archinstall_gui /srv/
+chmod +x /srv/archinstall_gui/webgui.py
+systemctl daemon-reload
+systemctl enable archinstall_gui.service
+EOF
+
+mkdir -p ./airootfs/etc/skel
+echo '[[ -z $DISPLAY && $XDG_VTNR -eq 1 ]] && sh -c "startx"' >> ./airootfs/etc/skel/.zprofile
+
+rm -v work*; ./build.sh -v
+
+mkdir -p ${FINAL_DESTINATION}
+mv out/* ${FINAL_DESTINATION}/${FINAL_NAME}
+rm -rf ${BUILD_DIR}
