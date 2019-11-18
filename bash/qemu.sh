@@ -6,6 +6,7 @@
 MAC='00:11:22:33:44:55'
 TAP='tap1'
 BRIDGE='br0'
+INTERNET='ens4u2'
 CD=''
 IMAGE="$1"
 
@@ -21,8 +22,11 @@ fi
 
 if [[ -z $(ip addr | grep ${BRIDGE}) ]]; then
   sudo brctl addbr ${BRIDGE}
-  sudo ip addr add 192.168.0.1/24 dev ${BRIDGE}
+  sudo brctl addif ${BRIDGE} ${INTERNET}
   sudo ip link set dev ${BRIDGE} up
+  sudp ip addr flush ${INTERNET}
+  #sudo ip addr add 192.168.0.1/24 dev ${BRIDGE}
+  sudo dhclient -v ${BRIDGE}
 fi
 
 if [[ -z $(ip addr | grep ${TAP}) ]]; then
