@@ -2,7 +2,7 @@
 
 BUILD_DIR="/tmp/archlive_guided"
 FINAL_DESTINATION="/srv/http/default/archiso"
-FINAL_NAME="archlinux_guided-$(date +'%m.%d.%Y').iso"
+FINAL_NAME="archlinux_guided-$(date +'%Y.%m.%d').iso"
 
 ## Clean slate
 rm -rf ${BUILD_DIR}/
