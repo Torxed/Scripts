@@ -4,6 +4,8 @@ from cryptography.hazmat.backends.interfaces import DHBackend
 from cryptography.hazmat.backends.openssl.backend import backend
 from cryptography.hazmat.primitives.serialization import ParameterFormat
 
+# This equals (?): openssl dhparam -out dh1024.pem 1024
+
 def generate_diffie_hellman(key_size):
     # "generator is often 2 or 5" / "generator must be 2 or 5.." (depending on where you read)
     DHBackend.generate_dh_parameters(backend, generator=2, key_size=key_size)
