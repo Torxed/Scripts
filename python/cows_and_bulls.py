@@ -45,7 +45,7 @@ def select_one_potential_unpositioned_num():
 	return random.choice(list(potential['unpositioned'].keys()))
 
 def build_combination_of_unvalids_with_one_valid(num, ignore=[]):
-	print(f'[+] Bulding guess based on {num} and it\'s previous positions: {ignore}')
+	print(f'[ ] Building guess based on {num} and it\'s previous positions: {ignore}')
 	possible_positions = ["0","1","2","3"]
 	# Eliminate already tried positions:
 	for index in ignore:
@@ -164,6 +164,8 @@ for x in range(30):
 			print(f'[ ] \033[38;5;202m{guess} | {guess_history[guess]["score"]}\033[0m')
 		elif guess_history[guess]['type'] == 'shadow':
 			print(f'[ ] \033[38;5;238m{guess} | {guess_history[guess]["score"]}\033[0m')
+		elif guess_history[guess]['type'] == 'eliminated':
+			print(f'[ ] \033[38;5;160m\033[09m{guess} | {guess_history[guess]["score"]}\033[0m')
 
 	#print('[ ] Guess history:', json.dumps({k: v['score'] for k,v in guess_history.items()}, indent=4))
 	print('[ ] Potentials:', json.dumps(potential, indent=4))
@@ -383,6 +385,24 @@ for x in range(30):
 				del(potential['unpositioned'][i])
 			elif i in potential['exacts']:
 				del(potential['exacts'][i])
+	elif hits['exact'] + hits['unpositioned'] == 0:
+		print(f'[+] All numbers in guess was eliminated: \033[38;5;160m\033[09m{guess}\033[0m')
+		guess_history[guess] = {'score' : ('X' * hits['exact'])+('/' * hits['unpositioned']), 'type' : 'eliminated'}
+		for num in guess:
+			eliminated_numbers[num] = True
+			try:
+				del(potential['schrodingers'][num])
+			except:
+				pass
+			try:
+				del(potential['unpositioned'][num])
+			except:
+				pass
+			try:
+				del(potential['exacts'][num])
+			except:
+				pass
+			continue
 	elif unique_results >= 4:
 		potential_eliminations = {}
 		ignore = {}
@@ -428,7 +448,7 @@ for x in range(30):
 		for index, num in enumerate(guess):
 			if super_positioning:
 				if num == super_positioning:
-					print(f'[ ] Found super position for {num} @ {index+1}.')
+					print(f'[+] Found super position for \033[38;5;82m{num} @ {index+1}\033[0m.')
 					exact[num] = index
 					try:
 						del(potential['schrodingers'][num])
