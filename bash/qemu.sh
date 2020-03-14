@@ -13,11 +13,12 @@ IMAGE="$1"
 REDIRECT=$(sysctl -a 2>/dev/null | grep 'net.ipv4.ip_forward = 1')
 if [[ -z $REDIRECT ]]; then
 	sudo sysctl net.ipv4.ip_forward=1
-	sudo iptables -t nat -A POSTROUTING -o ${BRIDGE} -j MASQUERADE
-	sudo iptables -A FORWARD -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
-	sudo iptables -A FORWARD -i ${TAP} -o ${BRIDGE} -j ACCEPT
-	sudo iptables -A FORWARD -i ${BRIDGE} -o ${BRIDGE} -j ACCEPT
 fi
+
+sudo iptables -t nat -A POSTROUTING -o ${BRIDGE} -j MASQUERADE
+sudo iptables -A FORWARD -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+sudo iptables -A FORWARD -i ${TAP} -o ${BRIDGE} -j ACCEPT
+sudo iptables -A FORWARD -i ${BRIDGE} -o ${BRIDGE} -j ACCEPT
 
 if [[ -n $2 ]]; then
 	CD="-drive file=$2,media=cdrom,bus=0,index=0"
@@ -32,7 +33,7 @@ if [[ -z $(ip addr | grep ${BRIDGE}) ]]; then
 	sudo ip link set dev ${BRIDGE} up
 	sudp ip addr flush ${INTERNET}
 	#sudo ip addr add 192.168.0.1/24 dev ${BRIDGE}
-	sudo dhclient -v ${BRIDGE}
+#	sudo dhclient -v ${BRIDGE}
 fi
 
 if [[ -z $(ip addr | grep ${TAP}) ]]; then
