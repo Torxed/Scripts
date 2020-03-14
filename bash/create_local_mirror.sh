@@ -9,7 +9,7 @@ PACKAGES=$(expac -S '%E' -l '\n' base base-devel linux linux-firmware btrfs-prog
 mkdir -p "${TMP_DB}"
 mkdir -p "${BIN_PATH}"
 sudo pacman --dbpath "${TMP_DB}" -Syu -w --root "${ROOT_PATH}" --cachedir "${BIN_PATH}" ${PACKAGES}
-sudo repo-add "${ROOT_PATH}/${BIN_PATH}/local_repo.db.tar.gz" "${ROOT_PATH}/${BIN_PATH}/*.pkg.tar.xz"
+sudo repo-add "${ROOT_PATH}/${BIN_PATH}/local_repo.db.tar.gz" "${ROOT_PATH}/${BIN_PATH}/{*.pkg.tar.xz,*.pkg.tar.zst}"
 
 cat <<EOF
 [local_repo]
