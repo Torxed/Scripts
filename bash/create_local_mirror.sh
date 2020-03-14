@@ -6,7 +6,7 @@ BIN_PATH="os/x86_64"
 
 mkdir -p "${TMP_DB}"
 mkdir -p "${BIN_PATH}"
-sudo pacman --dbpath "${TMP_DB}" -Syu -w --root "${ROOT_PATH}" --cachedir "${BIN_PATH}" base base-devel linux linux-firmware btrfs-progs efibootmgr nano wpa_supplicant dialog nano lollypop gstreamer gst-plugins-good gnome-keyring nemo gpicview-gtk3 chromium awesome xorg-server xorg-xrandr xorg-xinit xterm feh slock xscreensaver terminus-font-otb gnu-free-fonts ttf-liberation xsel qemu ovmf openssh sshfs git htop pkgfile scrot dhclient wget smbclient cifs-utils libu2f-host pulseaudio pulseaudio-alsa pavucontrol
+sudo pacman --dbpath "${TMP_DB}" -Syu -w --root "${ROOT_PATH}" --cachedir "${BIN_PATH}" base base-devel linux linux-firmware btrfs-progs efibootmgr nano wpa_supplicant dialog nano lollypop gstreamer gst-plugins-good gnome-keyring nemo gpicview-gtk3 chromium awesome xorg-server xorg-xrandr xorg-xinit xterm feh slock xscreensaver terminus-font-otb gnu-free-fonts ttf-liberation xsel qemu ovmf openssh sshfs git htop pkgfile scrot dhclient wget smbclient cifs-utils libu2f-host pulseaudio pulseaudio-alsa pavucontrol git python python-psutil python-systemd python-pygeoip geoip-database
 sudo repo-add "${ROOT_PATH}/${BIN_PATH}/local_repo.db.tar.gz" "${ROOT_PATH}/${BIN_PATH}/*.pkg.tar.xz"
 
 cat <<EOF
