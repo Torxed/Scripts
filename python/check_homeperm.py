@@ -18,7 +18,7 @@ UID = int(os.path.basename(os.environ['XDG_RUNTIME_DIR']))
 
 for root, folders, files in os.walk('/home'):
         for home_dir in folders:
-                if f'{USER}@xray.int' == home_dir:
+                if f'{USER}@{DOMAIN}' == home_dir:
                         os.chown(os.path.abspath(f'{root}/{home_dir}/{SHARE_DIRECTORY}'), UID, ADMINS_GID)
                         os.chmod(os.path.abspath(f'{root}/{home_dir}/{SHARE_DIRECTORY}'), stat.S_IRUSR | stat.S_IXUSR | stat.S_IRWXG)
                         exit(0)
