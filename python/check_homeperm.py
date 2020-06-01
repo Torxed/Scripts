@@ -7,6 +7,7 @@ import os, stat
 
 ADMINS_GID = 0
 SHARE_DIRECTORY = 'upload_directory'
+DOMAIN = 'example.com'
 
 if not 'PAM_USER' in os.environ:
         exit(1)
