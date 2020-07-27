@@ -1,4 +1,4 @@
-from pyglet import *
+import pyglet
 from pyglet.gl import *
 
 key = pyglet.window.key
