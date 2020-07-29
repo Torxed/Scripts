@@ -74,6 +74,20 @@ class _Vector {
 	}
 }
 
+class _Distance extends _Delta {
+	constructor(source, destination) {
+		super(source, destination)
+	}
+
+	__repr__() {
+		return `Distance(${this.pixels})`
+	}
+
+	get pixels() {
+		return Math.pow(Math.pow(this.destination.x - this.source.x, 2) + Math.pow(this.destination.y - this.source.y, 2), 0.5)
+	}
+}
+
 function Pos(x, y) {
 	return new _Pos(x, y)
 }
@@ -86,6 +100,9 @@ function Delta(source, destination) {
 function Vector(source, angle) {
 	return new _Vector(source, angle)
 }
+function Distance(source, destination) {
+	return new _Distance(source, destination)
+}
 function str(obj) {
 	if (typeof obj.__repr__ !== 'undefined')
 		return obj.__repr__()
@@ -97,5 +114,6 @@ window.space = {
 	'Tangent' : Tangent,
 	'Delta' : Delta,
 	'Vector' : Vector,
+	'Distance' : Distance,
 	'str' : str
 }
