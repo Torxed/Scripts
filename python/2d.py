@@ -58,6 +58,10 @@ class Vector:
 		return Pos(x=self.source.x + (x_multiplier * distance),
 					y=self.source.y + (y_multiplier * distance))
 
+	def turn(self, angle):
+		self.angle += angle
+		return self
+
 class Distance(Delta):
 	def __repr__(self):
 		return f'Distance({self.pixels})'
