@@ -48,12 +48,23 @@ class Vector:
 		self.source = source
 		self.angle = angle
 
+	def __repr__(self):
+		return f'Vector(source: {self.source}, angle: {this.angle})'
+
 	def move(self, distance):
 		x_multiplier = math.cos(((self.angle)/180)*math.pi)
 		y_multiplier = math.sin(((self.angle)/180)*math.pi)
 
 		return Pos(x=self.source.x + (x_multiplier * distance),
 					y=self.source.y + (y_multiplier * distance))
+
+class Distance(Delta):
+	def __repr__(self):
+		return f'Distance({self.pixels})'
+
+	@property
+	def pixels(self):
+		return pow(pow(self.destination.x - self.source.x, 2) + pow(self.destination.y - self.source.y, 2), 0.5)
 
 if __name__ == '__main__':
 	start = Pos(50, 70)
@@ -63,6 +74,7 @@ if __name__ == '__main__':
 	tangent = Tangent(delta)
 
 	new_position = Vector(start, tangent.angle).move(distance=5)
+	distance = Distance(start, new_position)
 
 	print('Start: ' + str(start))
 	print('Destination: ' + str(destination))
@@ -70,3 +82,4 @@ if __name__ == '__main__':
 	print('Tangent: ' + str(tangent))
 	print('Degrees: ' + str(int(tangent.angle)))
 	print('New pos: ' + str(new_position))
+	print('Distance in pixels: ' + str(distance))
