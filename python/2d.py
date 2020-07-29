@@ -52,8 +52,8 @@ class Vector:
 		return f'Vector(source: {self.source}, angle: {this.angle})'
 
 	def move(self, distance):
-		x_multiplier = math.cos(((self.angle)/180)*math.pi)
-		y_multiplier = math.sin(((self.angle)/180)*math.pi)
+		x_multiplier = math.cos((self.angle/180)*math.pi)
+		y_multiplier = math.sin((self.angle/180)*math.pi)
 
 		return Pos(x=self.source.x + (x_multiplier * distance),
 					y=self.source.y + (y_multiplier * distance))
