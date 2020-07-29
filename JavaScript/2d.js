@@ -32,6 +32,40 @@
 </html>
 
 **/
+/**
+* Example usage:
+
+<!DOCTYPE html>
+<html>
+<head>
+	<title></title>
+	<meta charset="UTF-8">
+	<script src="2d.js"></script>
+	<script type="text/javascript">
+		start = Pos(50, 70)
+		destination = Pos(120, 120)
+
+		delta = Delta(start, destination)
+		tangent = Tangent(delta)
+
+		new_position = Vector(start, tangent.angle).move(distance=5)
+		distance = Distance(start, new_position)
+
+		console.log('Start: ' + str(start))
+		console.log('Destination: ' + str(destination))
+		console.log('Delta: ' + str(delta))
+		console.log('Tangent: ' + str(tangent))
+		console.log('Degrees: ' + str(tangent.angle))
+		console.log('New pos: ' + str(new_position))
+		console.log('Distance in pixels: ' + str(distance))
+	</script>
+</head>
+<body>
+
+</body>
+</html>
+
+**/
 class _Pos {
 	constructor(x, y) {
 		this.x = x;
@@ -100,11 +134,16 @@ class _Vector {
 	}
 
 	move(distance) {
-		let x_multiplier = Math.cos(((this.angle)/180)*Math.PI)
-		let y_multiplier = Math.sin(((this.angle)/180)*Math.PI)
+		let x_multiplier = Math.cos((this.angle/180)*Math.PI)
+		let y_multiplier = Math.sin((this.angle/180)*Math.PI)
 
 		return new _Pos(this.source.x + (x_multiplier * distance),
 						this.source.y + (y_multiplier * distance))
+	}
+
+	turn(angle) {
+		this.angle += angle;
+		return this;
 	}
 }
 
