@@ -1,5 +1,5 @@
 #!/usr/bin/python
-#-> /etc/pam.d/sshd: session   required  pam_exec.so          /usr/bin/login_check.py
+#-> /etc/pam.d/sshd: session   required  pam_exec.so          /usr/bin/verify_login.py
 
 import dns.resolver # dnspython (https://www.dnspython.org/)
 import dkim
