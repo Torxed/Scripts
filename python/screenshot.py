@@ -6,6 +6,10 @@ import pyglet
 from ctypes.wintypes import (BOOL, DOUBLE, DWORD, HBITMAP, HDC, HGDIOBJ,  # noqa
 								 HWND, INT, LPARAM, LONG, UINT, WORD)  # noqa
 
+## HELP: https://stackoverflow.com/questions/17394685/screenshot-ctypes-windll-createdcfromhandle
+# Modded from: https://github.com/flexxui/flexx/blob/master/flexx/util/screenshot.py
+# And copied from: https://github.com/python-pillow/Pillow/blob/2b87ccae896c0b35a1215f2d454ffe4c547e7d93/src/display.c
+
 SRCCOPY = 0xCC0020  # Code de copie pour la fonction BitBlt()
 CAPTUREBLT = 0x40000000
 DIB_RGB_COLORS = BI_RGB = 0
@@ -22,24 +26,6 @@ class BITMAPINFOHEADER(ctypes.Structure):
 
 class BITMAPINFO(ctypes.Structure):
 	_fields_ = [('bmiHeader', BITMAPINFOHEADER), ('bmiColors', DWORD * 3)]
-
-# Arg types
-ctypes.windll.user32.GetWindowDC.argtypes = [HWND]
-ctypes.windll.gdi32.CreateCompatibleDC.argtypes = [HDC]
-ctypes.windll.gdi32.CreateCompatibleBitmap.argtypes = [HDC, INT, INT]
-ctypes.windll.gdi32.SelectObject.argtypes = [HDC, HGDIOBJ]
-ctypes.windll.gdi32.BitBlt.argtypes = [HDC, INT, INT, INT, INT, HDC, INT, INT, DWORD]
-ctypes.windll.gdi32.DeleteObject.argtypes = [HGDIOBJ]
-ctypes.windll.gdi32.GetDIBits.argtypes = [HDC, HBITMAP, UINT, UINT, ctypes.c_void_p,
-                                    ctypes.POINTER(BITMAPINFO), UINT]
-# Return types
-ctypes.windll.user32.GetWindowDC.restypes = HDC
-ctypes.windll.gdi32.CreateCompatibleDC.restypes = HDC
-ctypes.windll.gdi32.CreateCompatibleBitmap.restypes = HBITMAP
-ctypes.windll.gdi32.SelectObject.restypes = HGDIOBJ
-ctypes.windll.gdi32.BitBlt.restypes = BOOL
-ctypes.windll.gdi32.GetDIBits.restypes = INT
-ctypes.windll.gdi32.DeleteObject.restypes = BOOL
 
 # 1864
 class WindowsWindow():
@@ -62,16 +48,20 @@ class WindowsWindow():
 	def __repr__(self):
 		return f"<Window {self.hwnd} @ x: {self.x}, y: {self.y}, width: {self.width}, height: {self.height}>"
 
-def GetWindowRectFromName(name:str, include_window_decoration=True)-> tuple:
+def GetWindowRectFromName(name:str, include_window_decoration=False, padd_for_header=True)-> tuple:
 	hwnd = ctypes.windll.user32.FindWindowW(0, name)
 	rect = ctypes.wintypes.RECT()
+	padding=0
 	if include_window_decoration:
 		ctypes.windll.user32.GetWindowRect(hwnd, ctypes.pointer(rect))
 	else:
 		ctypes.windll.user32.GetClientRect(hwnd, ctypes.pointer(rect))
 
+	if padd_for_header:
+		padding += 46
+
 	if hwnd:
-		return WindowsWindow(hwnd, rect.left, rect.top, rect.right-rect.left, rect.bottom-rect.top)
+		return WindowsWindow(hwnd, rect.left, rect.top+padding, rect.right-rect.left, rect.bottom-rect.top)
 
 #def get_monitor():
 #	rect = ctypes.wintypes.RECT()
@@ -79,11 +69,10 @@ def GetWindowRectFromName(name:str, include_window_decoration=True)-> tuple:
 #	ctypes.windll.user32.GetClientRect(monitorDC, ctypes.pointer(rect))
 #	return WindowsWindow(monitorDC, rect.left, rect.top, rect.right-rect.left, rect.bottom-rect.top)
 
-
 def screenshot(WindowsWindow_Obj):# target_hwnd, x, y, width, height):
 	x, y = WindowsWindow_Obj.x, WindowsWindow_Obj.y
 	height, width = WindowsWindow_Obj.height, WindowsWindow_Obj.width
-	RASTER_OPTIONS = SRCCOPY | CAPTUREBLT
+	RASTER_OPTIONS = SRCCOPY
 	buffer_len = height * width * 4
 
 	#hwndDC = ctypes.windll.user32.GetWindowDC(WindowsWindow_Obj.hwnd)
@@ -98,16 +87,16 @@ def screenshot(WindowsWindow_Obj):# target_hwnd, x, y, width, height):
 	bmi = BITMAPINFO()
 	bmi.bmiHeader.biSize = ctypes.sizeof(BITMAPINFOHEADER)
 	bmi.bmiHeader.biWidth = width
-	bmi.bmiHeader.biHeight = height  # Why minus? See [1]
-	bmi.bmiHeader.biPlanes = 1  # Always 1
-	bmi.bmiHeader.biBitCount = 32 # Because we're capturing BGRX (not sure how to avoid this)
+	bmi.bmiHeader.biHeight = height
+	bmi.bmiHeader.biPlanes = 1 # bcPlanes has to be one according to https://docs.microsoft.com/en-us/windows/win32/api/wingdi/ns-wingdi-bitmapcoreheader
+	bmi.bmiHeader.biBitCount = 32 # Because we're capturing BGRX (not sure how to avoid this, but 24 would be more logical?)
 	bmi.bmiHeader.biCompression = BI_RGB
 
 	image = ctypes.create_string_buffer(buffer_len)
 	ctypes.windll.gdi32.BitBlt(saveDC, 0, 0, width, height, hwndDC, x, y, RASTER_OPTIONS)
 	image_line_count = ctypes.windll.gdi32.GetDIBits(saveDC, bitmap, 0, height, image, bmi, DIB_RGB_COLORS)
-
 	assert image_line_count == height
+
 	# Replace pixels values: BGRX to RGB
 	image2 = ctypes.create_string_buffer(height*width*3)
 	image2[0::3] = image[2::4]
@@ -122,7 +111,7 @@ def screenshot(WindowsWindow_Obj):# target_hwnd, x, y, width, height):
 
 class main(pyglet.window.Window):
 	def __init__ (self, width=800, height=600, fps=False, *args, **kwargs):
-		# game_window = GetWindowRectFromName("Forager by HopFrog")
+		#game_window = GetWindowRectFromName("Forager by HopFrog")
 		game_window = GetWindowRectFromName("Films & TV")
 
 		super(main, self).__init__(game_window.width, game_window.height, *args, **kwargs)
