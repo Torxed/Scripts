@@ -7,6 +7,7 @@ class JSON_Encoder:
 			## We'll need to iterate not just the value that default() usually gets passed
 			## But also iterate manually over each key: value pair in order to trap the keys.
 			
+			copy = {}
 			for key, val in list(obj.items()):
 				if isinstance(val, dict):
 					val = loads(dumps(val, cls=JSON_Typer)) # This, is a EXTREMELY ugly hack..
@@ -14,9 +15,8 @@ class JSON_Encoder:
                                                             # trigger a encoding of sub-dictionaries. (I'm also very tired, yolo!)
 				else:
 					val = JSON_Encoder._encode(val)
-				del(obj[key])
-				obj[JSON_Encoder._encode(key)] = val
-			return obj
+				copy[JSON_Encoder._encode(key)] = val
+			return copy
 		elif hasattr(obj, 'json'):
 			return obj.json()
 		elif isinstance(obj, (datetime, date)):
