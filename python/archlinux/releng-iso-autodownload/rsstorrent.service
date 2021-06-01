@@ -1,0 +1,10 @@
+[Unit]
+Description=half assed service script for /home/torxed/rsstorrent.py
+Wants=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 /home/torxed/rsstorrent.py
+
+[Install]
+WantedBy=multi-user.target
