@@ -1,0 +1,2 @@
+# Set up a scheduler for rtorrent to the rtorrent.py destination:
+schedule = watch_start, 5, 5, ((load.start_verbose, (cat, "/srv/ISOs/*.torrent")))
