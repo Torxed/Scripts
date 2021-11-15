@@ -313,7 +313,9 @@ if __name__ == '__main__':
 	parser.add_argument("--interface-name", nargs="?", help="What TAP interface name should be used.", default='tap0')
 	args, unknowns = parser.parse_known_args()
 
-	sudo_pw = None
+	username = 'anton'
+	groupname = 'anton'
+	sudo_pw = getpass.getpass(f"Enter sudo password in order to setup archinstall test environment: ")
 	builddir = pathlib.Path(args.build_dir).expanduser()
 	harddrives={}
 	for drive in args.harddrives.split(','):
@@ -334,8 +336,6 @@ if __name__ == '__main__':
 			handle = SysCommandWorker(f"sudo rm -rf {builddir}")
 			while handle.is_alive():
 				if b'password for' in handle:
-					if not sudo_pw:
-						sudo_pw = getpass.getpass(f"Enter sudo password for this user in order to remove old builddir: ")
 					handle.write(bytes(sudo_pw, 'UTF-8'))
 
 		shutil.copytree('/usr/share/archiso/configs/releng', str(builddir), symlinks=True, ignore=None)
@@ -354,8 +354,6 @@ if __name__ == '__main__':
 		pw_prompted = False
 		while handle.is_alive():
 			if b'password for' and pw_prompted is False:
-				if not sudo_pw:
-					sudo_pw = getpass.getpass(f"Enter sudo password for this user in order to build the ISO: ")
 				handle.write(bytes(sudo_pw, 'UTF-8'))
 				pw_prompted = True
 
@@ -363,6 +361,93 @@ if __name__ == '__main__':
 			raise SysCallError(f"Could not build ISO: {handle}", handle.exit_code)
 
 	ISO = glob.glob(f"{builddir}/out/*.iso")[0]
+
+	# Set IPv4 forward
+	with open('/proc/sys/net/ipv4/ip_forward', 'r') as fh:
+		ip_forward = int(fh.read().strip())
+
+	if ip_forward == 0:
+		with open('/proc/sys/net/ipv4/ip_forward', 'w') as fh:
+			fh.write("1")
+
+	iptables = SysCommandWorker(f"bash -c 'sudo iptables-save'")
+	pw_prompted = False
+	while iptables.is_alive():
+		if b'password for' and pw_prompted is False:
+			iptables.write(bytes(sudo_pw, 'UTF-8'))
+			pw_prompted = True
+
+	# Bridge
+	if not glob.glob(f'/sys/class/net/{args.bridge}'):
+		handle = SysCommandWorker(f"sudo ip link add name {args.bridge} type bridge")
+		pw_prompted = False
+		while handle.is_alive():
+			if b'password for' and pw_prompted is False:
+				handle.write(bytes(sudo_pw, 'UTF-8'))
+				pw_prompted = True
+
+		handle = SysCommandWorker(f"sudo ip link set dev {args.internet} master {args.bridge}")
+		pw_prompted = False
+		while handle.is_alive():
+			if b'password for' and pw_prompted is False:
+				handle.write(bytes(sudo_pw, 'UTF-8'))
+				pw_prompted = True
+
+		handle = SysCommandWorker(f"sudo ip link set dev {args.bridge} up")
+		pw_prompted = False
+		while handle.is_alive():
+			if b'password for' and pw_prompted is False:
+				handle.write(bytes(sudo_pw, 'UTF-8'))
+				pw_prompted = True
+
+	# Tap interface
+	if not glob.glob(f'/sys/class/net/{args.interface_name}'):
+		handle = SysCommandWorker(f"sudo ip tuntap add dev {args.interface_name} mode tap user {username} group {groupname}")
+		pw_prompted = False
+		while handle.is_alive():
+			if b'password for' and pw_prompted is False:
+				handle.write(bytes(sudo_pw, 'UTF-8'))
+				pw_prompted = True
+
+		handle = SysCommandWorker(f"sudo ip link set dev {args.interface_name} master {args.bridge}")
+		pw_prompted = False
+		while handle.is_alive():
+			if b'password for' and pw_prompted is False:
+				handle.write(bytes(sudo_pw, 'UTF-8'))
+				pw_prompted = True
+
+		handle = SysCommandWorker(f"sudo ip link set dev {args.interface_name} up")
+		pw_prompted = False
+		while handle.is_alive():
+			if b'password for' and pw_prompted is False:
+				handle.write(bytes(sudo_pw, 'UTF-8'))
+				pw_prompted = True
+
+	# IP on bridge
+	handle = SysCommandWorker(f"sudo dhclient -v {args.bridge}")
+	pw_prompted = False
+	while handle.is_alive():
+		if b'password for' and pw_prompted is False:
+			handle.write(bytes(sudo_pw, 'UTF-8'))
+			pw_prompted = True
+
+	if handle.exit_code == 0:
+		# Flush IP on internet interface
+		handle = SysCommandWorker(f"sudo ip addr flush {args.internet}")
+		pw_prompted = False
+		while handle.is_alive():
+			if b'password for' and pw_prompted is False:
+				handle.write(bytes(sudo_pw, 'UTF-8'))
+				pw_prompted = True
+
+	if not bytes(f'-A POSTROUTING -o {args.bridge} -j MASQUERADE', 'UTF-8') in iptables:
+		SysCommand(f"sudo iptables -t nat -A POSTROUTING -o {args.bridge} -j MASQUERADE")
+	if not bytes(f'-A FORWARD -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT', 'UTF-8') in iptables:
+		SysCommand(f"sudo iptables -A FORWARD -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT")
+	if not bytes(f'-A FORWARD -i {args.interface_name} -o {args.bridge} -j ACCEPT', 'UTF-8') in iptables:
+		SysCommand(f"sudo iptables -A FORWARD -i {args.interface_name} -o {args.bridge} -j ACCEPT")
+	if not bytes(f'-A FORWARD -i {args.bridge} -o {args.bridge} -j ACCEPT', 'UTF-8') in iptables:
+		SysCommand(f"sudo iptables -A FORWARD -i {args.bridge} -o {args.bridge} -j ACCEPT")
 
 	qemu = 'qemu-system-x86_64'
 	qemu += f' -cpu host'
