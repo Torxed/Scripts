@@ -329,7 +329,7 @@ if __name__ == '__main__':
 
 	if args.rebuild is not False:
 		try:
-			shutil.rmtree(str(builddir), ignore_errors=True)
+			shutil.rmtree(str(builddir))
 		except PermissionError:
 			handle = SysCommandWorker(f"sudo rm -rf {builddir}")
 			while handle.is_alive():
