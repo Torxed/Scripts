@@ -315,7 +315,8 @@ if __name__ == '__main__':
 
 	username = 'anton'
 	groupname = 'anton'
-	sudo_pw = getpass.getpass(f"Enter sudo password in order to setup archinstall test environment: ")
+	if args.rebuild is not False or args.internet is not None:
+		sudo_pw = getpass.getpass(f"Enter sudo password in order to setup archinstall test environment: ")
 	builddir = pathlib.Path(args.build_dir).expanduser()
 	harddrives={}
 	for drive in args.harddrives.split(','):
@@ -451,6 +452,13 @@ if __name__ == '__main__':
 		if not bytes(f'-A FORWARD -i {args.bridge} -o {args.bridge} -j ACCEPT', 'UTF-8') in iptables:
 			SysCommand(f"sudo iptables -A FORWARD -i {args.bridge} -o {args.bridge} -j ACCEPT")
 
+	if args.boot == 'cdrom':
+		hdd_boot_priority = 2
+		cdrom_boot_priority = 1
+	else:
+		hdd_boot_priority = 1
+		cdrom_boot_priority = len(harddrives)+1
+
 	qemu = 'qemu-system-x86_64'
 	qemu += f' -cpu host'
 	qemu += f' -enable-kvm'
@@ -462,10 +470,10 @@ if __name__ == '__main__':
 		qemu += f' -drive if=pflash,format=raw,readonly=on,file=/usr/share/ovmf/x64/OVMF_VARS.fd'
 	for index, hdd in enumerate(harddrives):
 		qemu += f' -device virtio-scsi-pci,bus=pcie.0,id=scsi{index}'
-		qemu += f'  -device scsi-hd,drive=hdd{index},bus=scsi{index}.0,id=scsi{index}.0,bootindex={2+index}'
+		qemu += f'  -device scsi-hd,drive=hdd{index},bus=scsi{index}.0,id=scsi{index}.0,bootindex={hdd_boot_priority+index}'
 		qemu += f'   -drive file={hdd},if=none,format=qcow2,discard=unmap,aio=native,cache=none,id=hdd{index}'
 	qemu += f' -device virtio-scsi-pci,bus=pcie.0,id=scsi{index+1}'
-	qemu += f'  -device scsi-cd,drive=cdrom0,bus=scsi{index+1}.0,bootindex=1'
+	qemu += f'  -device scsi-cd,drive=cdrom0,bus=scsi{index+1}.0,bootindex={cdrom_boot_priority}'
 	qemu += f'   -drive file={ISO},media=cdrom,if=none,format=raw,cache=none,id=cdrom0'
 
 	handle = SysCommandWorker(qemu, peak_output=True)
