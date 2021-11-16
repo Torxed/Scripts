@@ -300,16 +300,16 @@ if __name__ == '__main__':
 	parser = ArgumentParser()
 	
 	parser.add_argument("--repo", nargs="?", help="URL for repository", default="https://github.com/Torxed/archinstall.git")
-	parser.add_argument("--branch", action="store_true", help="Which branch of archinstall to use", default="master")
+	parser.add_argument("--branch", nargs="?", help="Which branch of archinstall to use", default="master")
 	parser.add_argument("--build-dir", nargs="?", help="Path to where archiso will be built", default="~/archiso")
 	parser.add_argument("--rebuild", action="store_true", help="To rebuild ISO or not", default=False)
-	parser.add_argument("--bios", nargs="?", help="Disables UEFI and uses BIOS support instead", default=False)
+	parser.add_argument("--bios", action="store_true", help="Disables UEFI and uses BIOS support instead", default=False)
 	parser.add_argument("--memory", nargs="?", help="Ammount of memory to supply the machine", default=8192)
 	parser.add_argument("--boot", nargs="?", help="Selects if hdd or cdrom should be booted first.", default="cdrom")
-	parser.add_argument("--new-drives", nargs="?", help="This flag will wipe drives before boot.", default=False)
+	parser.add_argument("--new-drives", action="store_true", help="This flag will wipe drives before boot.", default=False)
 	parser.add_argument("--harddrives", nargs="?", help="A list of harddrives and size (~/disk.qcow2:40G,~/disk2.qcow2:15G)", default="~/test.qcow2:15G,~/test_large.qcow2:40G")
 	parser.add_argument("--bridge", nargs="?", help="What bridge interface should be setup for internet access.", default='br0')
-	parser.add_argument("--internet", nargs="?", help="What internet interface should be used.", default='auto')
+	parser.add_argument("--internet", nargs="?", help="What internet interface should be used.", default=None)
 	parser.add_argument("--interface-name", nargs="?", help="What TAP interface name should be used.", default='tap0')
 	args, unknowns = parser.parse_known_args()
 
@@ -340,7 +340,8 @@ if __name__ == '__main__':
 
 		shutil.copytree('/usr/share/archiso/configs/releng', str(builddir), symlinks=True, ignore=None)
 
-		SysCommand(f"git clone {args.repo} -b {args.branch} {builddir}/airootfs/root/archinstall-git")
+		if (handle := SysCommand(f"git clone {args.repo} -b {args.branch} {builddir}/airootfs/root/archinstall-git")).exit_code != 0:
+			raise SysCallError(f"Could not clone repository: {handle}")
 
 		with open(f"{builddir}/packages.x86_64", "a") as packages:
 			packages.write(f"git\n")
@@ -362,92 +363,93 @@ if __name__ == '__main__':
 
 	ISO = glob.glob(f"{builddir}/out/*.iso")[0]
 
-	# Set IPv4 forward
-	with open('/proc/sys/net/ipv4/ip_forward', 'r') as fh:
-		ip_forward = int(fh.read().strip())
+	if args.internet is not None:
+		# Set IPv4 forward
+		with open('/proc/sys/net/ipv4/ip_forward', 'r') as fh:
+			ip_forward = int(fh.read().strip())
 
-	if ip_forward == 0:
-		with open('/proc/sys/net/ipv4/ip_forward', 'w') as fh:
-			fh.write("1")
+		if ip_forward == 0:
+			with open('/proc/sys/net/ipv4/ip_forward', 'w') as fh:
+				fh.write("1")
 
-	iptables = SysCommandWorker(f"bash -c 'sudo iptables-save'")
-	pw_prompted = False
-	while iptables.is_alive():
-		if b'password for' and pw_prompted is False:
-			iptables.write(bytes(sudo_pw, 'UTF-8'))
-			pw_prompted = True
+		# Bridge
+		if not glob.glob(f'/sys/class/net/{args.bridge}'):
+			handle = SysCommandWorker(f"sudo ip link add name {args.bridge} type bridge")
+			pw_prompted = False
+			while handle.is_alive():
+				if b'password for' and pw_prompted is False:
+					handle.write(bytes(sudo_pw, 'UTF-8'))
+					pw_prompted = True
 
-	# Bridge
-	if not glob.glob(f'/sys/class/net/{args.bridge}'):
-		handle = SysCommandWorker(f"sudo ip link add name {args.bridge} type bridge")
+			handle = SysCommandWorker(f"sudo ip link set dev {args.internet} master {args.bridge}")
+			pw_prompted = False
+			while handle.is_alive():
+				if b'password for' and pw_prompted is False:
+					handle.write(bytes(sudo_pw, 'UTF-8'))
+					pw_prompted = True
+
+			handle = SysCommandWorker(f"sudo ip link set dev {args.bridge} up")
+			pw_prompted = False
+			while handle.is_alive():
+				if b'password for' and pw_prompted is False:
+					handle.write(bytes(sudo_pw, 'UTF-8'))
+					pw_prompted = True
+
+		# Tap interface
+		if not glob.glob(f'/sys/class/net/{args.interface_name}'):
+			handle = SysCommandWorker(f"sudo ip tuntap add dev {args.interface_name} mode tap user {username} group {groupname}")
+			pw_prompted = False
+			while handle.is_alive():
+				if b'password for' and pw_prompted is False:
+					handle.write(bytes(sudo_pw, 'UTF-8'))
+					pw_prompted = True
+
+			handle = SysCommandWorker(f"sudo ip link set dev {args.interface_name} master {args.bridge}")
+			pw_prompted = False
+			while handle.is_alive():
+				if b'password for' and pw_prompted is False:
+					handle.write(bytes(sudo_pw, 'UTF-8'))
+					pw_prompted = True
+
+			handle = SysCommandWorker(f"sudo ip link set dev {args.interface_name} up")
+			pw_prompted = False
+			while handle.is_alive():
+				if b'password for' and pw_prompted is False:
+					handle.write(bytes(sudo_pw, 'UTF-8'))
+					pw_prompted = True
+
+		# IP on bridge
+		handle = SysCommandWorker(f"sudo dhclient -v {args.bridge}")
 		pw_prompted = False
 		while handle.is_alive():
 			if b'password for' and pw_prompted is False:
 				handle.write(bytes(sudo_pw, 'UTF-8'))
 				pw_prompted = True
 
-		handle = SysCommandWorker(f"sudo ip link set dev {args.internet} master {args.bridge}")
+		if handle.exit_code == 0:
+			# Flush IP on internet interface
+			handle = SysCommandWorker(f"sudo ip addr flush {args.internet}")
+			pw_prompted = False
+			while handle.is_alive():
+				if b'password for' and pw_prompted is False:
+					handle.write(bytes(sudo_pw, 'UTF-8'))
+					pw_prompted = True
+
+		iptables = SysCommandWorker(f"bash -c 'sudo iptables-save'")
 		pw_prompted = False
-		while handle.is_alive():
+		while iptables.is_alive():
 			if b'password for' and pw_prompted is False:
-				handle.write(bytes(sudo_pw, 'UTF-8'))
+				iptables.write(bytes(sudo_pw, 'UTF-8'))
 				pw_prompted = True
 
-		handle = SysCommandWorker(f"sudo ip link set dev {args.bridge} up")
-		pw_prompted = False
-		while handle.is_alive():
-			if b'password for' and pw_prompted is False:
-				handle.write(bytes(sudo_pw, 'UTF-8'))
-				pw_prompted = True
-
-	# Tap interface
-	if not glob.glob(f'/sys/class/net/{args.interface_name}'):
-		handle = SysCommandWorker(f"sudo ip tuntap add dev {args.interface_name} mode tap user {username} group {groupname}")
-		pw_prompted = False
-		while handle.is_alive():
-			if b'password for' and pw_prompted is False:
-				handle.write(bytes(sudo_pw, 'UTF-8'))
-				pw_prompted = True
-
-		handle = SysCommandWorker(f"sudo ip link set dev {args.interface_name} master {args.bridge}")
-		pw_prompted = False
-		while handle.is_alive():
-			if b'password for' and pw_prompted is False:
-				handle.write(bytes(sudo_pw, 'UTF-8'))
-				pw_prompted = True
-
-		handle = SysCommandWorker(f"sudo ip link set dev {args.interface_name} up")
-		pw_prompted = False
-		while handle.is_alive():
-			if b'password for' and pw_prompted is False:
-				handle.write(bytes(sudo_pw, 'UTF-8'))
-				pw_prompted = True
-
-	# IP on bridge
-	handle = SysCommandWorker(f"sudo dhclient -v {args.bridge}")
-	pw_prompted = False
-	while handle.is_alive():
-		if b'password for' and pw_prompted is False:
-			handle.write(bytes(sudo_pw, 'UTF-8'))
-			pw_prompted = True
-
-	if handle.exit_code == 0:
-		# Flush IP on internet interface
-		handle = SysCommandWorker(f"sudo ip addr flush {args.internet}")
-		pw_prompted = False
-		while handle.is_alive():
-			if b'password for' and pw_prompted is False:
-				handle.write(bytes(sudo_pw, 'UTF-8'))
-				pw_prompted = True
-
-	if not bytes(f'-A POSTROUTING -o {args.bridge} -j MASQUERADE', 'UTF-8') in iptables:
-		SysCommand(f"sudo iptables -t nat -A POSTROUTING -o {args.bridge} -j MASQUERADE")
-	if not bytes(f'-A FORWARD -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT', 'UTF-8') in iptables:
-		SysCommand(f"sudo iptables -A FORWARD -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT")
-	if not bytes(f'-A FORWARD -i {args.interface_name} -o {args.bridge} -j ACCEPT', 'UTF-8') in iptables:
-		SysCommand(f"sudo iptables -A FORWARD -i {args.interface_name} -o {args.bridge} -j ACCEPT")
-	if not bytes(f'-A FORWARD -i {args.bridge} -o {args.bridge} -j ACCEPT', 'UTF-8') in iptables:
-		SysCommand(f"sudo iptables -A FORWARD -i {args.bridge} -o {args.bridge} -j ACCEPT")
+		if not bytes(f'-A POSTROUTING -o {args.bridge} -j MASQUERADE', 'UTF-8') in iptables:
+			SysCommand(f"sudo iptables -t nat -A POSTROUTING -o {args.bridge} -j MASQUERADE")
+		if not bytes(f'-A FORWARD -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT', 'UTF-8') in iptables:
+			SysCommand(f"sudo iptables -A FORWARD -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT")
+		if not bytes(f'-A FORWARD -i {args.interface_name} -o {args.bridge} -j ACCEPT', 'UTF-8') in iptables:
+			SysCommand(f"sudo iptables -A FORWARD -i {args.interface_name} -o {args.bridge} -j ACCEPT")
+		if not bytes(f'-A FORWARD -i {args.bridge} -o {args.bridge} -j ACCEPT', 'UTF-8') in iptables:
+			SysCommand(f"sudo iptables -A FORWARD -i {args.bridge} -o {args.bridge} -j ACCEPT")
 
 	qemu = 'qemu-system-x86_64'
 	qemu += f' -cpu host'
