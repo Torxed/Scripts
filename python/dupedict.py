@@ -1,4 +1,4 @@
-from typing import Optional, Any, List, Tuple, Iterator, Dict
+from typing import Optional, Any, List, Tuple, Iterator
 
 class DupeDict(dict[Any, Any]):
 	"""
