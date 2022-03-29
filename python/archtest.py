@@ -307,15 +307,16 @@ if __name__ == '__main__':
 	parser.add_argument("--memory", nargs="?", help="Ammount of memory to supply the machine", default=8192)
 	parser.add_argument("--boot", nargs="?", help="Selects if hdd or cdrom should be booted first.", default="cdrom")
 	parser.add_argument("--new-drives", action="store_true", help="This flag will wipe drives before boot.", default=False)
-	parser.add_argument("--harddrives", nargs="?", help="A list of harddrives and size (~/disk.qcow2:40G,~/disk2.qcow2:15G)", default="~/test.qcow2:15G,~/test_large.qcow2:40G")
+	parser.add_argument("--harddrives", nargs="?", help="A list of harddrives and size (~/disk.qcow2:40G,~/disk2.qcow2:15G)", default="~/test.qcow2:15G,~/test_large.qcow2:70G")
 	parser.add_argument("--bridge", nargs="?", help="What bridge interface should be setup for internet access.", default='br0')
 	parser.add_argument("--internet", nargs="?", help="What internet interface should be used.", default=None)
 	parser.add_argument("--interface-name", nargs="?", help="What TAP interface name should be used.", default='tap0')
 	args, unknowns = parser.parse_known_args()
 
+	sudo_pw = None
 	username = 'anton'
 	groupname = 'anton'
-	if args.rebuild is not False or args.internet is not None:
+	if args.rebuild is not False or args.internet is not None or args.interface_name is not None:
 		sudo_pw = getpass.getpass(f"Enter sudo password in order to setup archinstall test environment: ")
 	builddir = pathlib.Path(args.build_dir).expanduser()
 	harddrives={}
@@ -323,10 +324,11 @@ if __name__ == '__main__':
 		path, size = drive.split(':')
 		harddrives[pathlib.Path(path.strip()).expanduser()] = size.strip()
 
-	if args.new_drives is not False:
-		for hdd, size in harddrives.items():
+	for hdd, size in harddrives.items():
+		if args.new_drives is not False:
 			pathlib.Path(hdd).unlink(missing_ok=True)
 
+		if not pathlib.Path(hdd).exists():
 			if (handle := SysCommand(f"qemu-img create -f qcow2 {hdd} {size}")).exit_code != 0:
 				raise ValueError(f"Could not create harddrive {hdd}: {handle}")
 
@@ -370,9 +372,14 @@ if __name__ == '__main__':
 			ip_forward = int(fh.read().strip())
 
 		if ip_forward == 0:
-			with open('/proc/sys/net/ipv4/ip_forward', 'w') as fh:
-				fh.write("1")
+			handle = SysCommandWorker(f"sudo sysctl net.ipv4.ip_forward=1")
+			pw_prompted = False
+			while handle.is_alive():
+				if b'password for' and pw_prompted is False:
+					handle.write(bytes(sudo_pw, 'UTF-8'))
+					pw_prompted = True
 
+	if args.bridge is not None:
 		# Bridge
 		if not glob.glob(f'/sys/class/net/{args.bridge}'):
 			handle = SysCommandWorker(f"sudo ip link add name {args.bridge} type bridge")
@@ -382,12 +389,13 @@ if __name__ == '__main__':
 					handle.write(bytes(sudo_pw, 'UTF-8'))
 					pw_prompted = True
 
-			handle = SysCommandWorker(f"sudo ip link set dev {args.internet} master {args.bridge}")
-			pw_prompted = False
-			while handle.is_alive():
-				if b'password for' and pw_prompted is False:
-					handle.write(bytes(sudo_pw, 'UTF-8'))
-					pw_prompted = True
+			if args.internet:
+				handle = SysCommandWorker(f"sudo ip link set dev {args.internet} master {args.bridge}")
+				pw_prompted = False
+				while handle.is_alive():
+					if b'password for' and pw_prompted is False:
+						handle.write(bytes(sudo_pw, 'UTF-8'))
+						pw_prompted = True
 
 			handle = SysCommandWorker(f"sudo ip link set dev {args.bridge} up")
 			pw_prompted = False
@@ -396,6 +404,7 @@ if __name__ == '__main__':
 					handle.write(bytes(sudo_pw, 'UTF-8'))
 					pw_prompted = True
 
+	if args.interface_name is not None:
 		# Tap interface
 		if not glob.glob(f'/sys/class/net/{args.interface_name}'):
 			handle = SysCommandWorker(f"sudo ip tuntap add dev {args.interface_name} mode tap user {username} group {groupname}")
@@ -405,6 +414,8 @@ if __name__ == '__main__':
 					handle.write(bytes(sudo_pw, 'UTF-8'))
 					pw_prompted = True
 
+		if args.bridge:
+			print(f"sudo ip link set dev {args.interface_name} master {args.bridge}")
 			handle = SysCommandWorker(f"sudo ip link set dev {args.interface_name} master {args.bridge}")
 			pw_prompted = False
 			while handle.is_alive():
@@ -412,13 +423,15 @@ if __name__ == '__main__':
 					handle.write(bytes(sudo_pw, 'UTF-8'))
 					pw_prompted = True
 
-			handle = SysCommandWorker(f"sudo ip link set dev {args.interface_name} up")
-			pw_prompted = False
-			while handle.is_alive():
-				if b'password for' and pw_prompted is False:
-					handle.write(bytes(sudo_pw, 'UTF-8'))
-					pw_prompted = True
+		print(f"sudo ip link set dev {args.interface_name} up")
+		handle = SysCommandWorker(f"sudo ip link set dev {args.interface_name} up")
+		pw_prompted = False
+		while handle.is_alive():
+			if b'password for' and pw_prompted is False:
+				handle.write(bytes(sudo_pw, 'UTF-8'))
+				pw_prompted = True
 
+	if args.bridge:
 		# IP on bridge
 		handle = SysCommandWorker(f"sudo dhclient -v {args.bridge}")
 		pw_prompted = False
@@ -427,30 +440,31 @@ if __name__ == '__main__':
 				handle.write(bytes(sudo_pw, 'UTF-8'))
 				pw_prompted = True
 
-		if handle.exit_code == 0:
-			# Flush IP on internet interface
-			handle = SysCommandWorker(f"sudo ip addr flush {args.internet}")
+		if args.internet:
+			if handle.exit_code == 0:
+				# Flush IP on internet interface
+				handle = SysCommandWorker(f"sudo ip addr flush {args.internet}")
+				pw_prompted = False
+				while handle.is_alive():
+					if b'password for' and pw_prompted is False:
+						handle.write(bytes(sudo_pw, 'UTF-8'))
+						pw_prompted = True
+
+			iptables = SysCommandWorker(f"bash -c 'sudo iptables-save'")
 			pw_prompted = False
-			while handle.is_alive():
+			while iptables.is_alive():
 				if b'password for' and pw_prompted is False:
-					handle.write(bytes(sudo_pw, 'UTF-8'))
+					iptables.write(bytes(sudo_pw, 'UTF-8'))
 					pw_prompted = True
 
-		iptables = SysCommandWorker(f"bash -c 'sudo iptables-save'")
-		pw_prompted = False
-		while iptables.is_alive():
-			if b'password for' and pw_prompted is False:
-				iptables.write(bytes(sudo_pw, 'UTF-8'))
-				pw_prompted = True
-
-		if not bytes(f'-A POSTROUTING -o {args.bridge} -j MASQUERADE', 'UTF-8') in iptables:
-			SysCommand(f"sudo iptables -t nat -A POSTROUTING -o {args.bridge} -j MASQUERADE")
-		if not bytes(f'-A FORWARD -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT', 'UTF-8') in iptables:
-			SysCommand(f"sudo iptables -A FORWARD -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT")
-		if not bytes(f'-A FORWARD -i {args.interface_name} -o {args.bridge} -j ACCEPT', 'UTF-8') in iptables:
-			SysCommand(f"sudo iptables -A FORWARD -i {args.interface_name} -o {args.bridge} -j ACCEPT")
-		if not bytes(f'-A FORWARD -i {args.bridge} -o {args.bridge} -j ACCEPT', 'UTF-8') in iptables:
-			SysCommand(f"sudo iptables -A FORWARD -i {args.bridge} -o {args.bridge} -j ACCEPT")
+			if not bytes(f'-A POSTROUTING -o {args.bridge} -j MASQUERADE', 'UTF-8') in iptables:
+				SysCommand(f"sudo iptables -t nat -A POSTROUTING -o {args.bridge} -j MASQUERADE")
+			if not bytes(f'-A FORWARD -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT', 'UTF-8') in iptables:
+				SysCommand(f"sudo iptables -A FORWARD -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT")
+			if not bytes(f'-A FORWARD -i {args.interface_name} -o {args.bridge} -j ACCEPT', 'UTF-8') in iptables:
+				SysCommand(f"sudo iptables -A FORWARD -i {args.interface_name} -o {args.bridge} -j ACCEPT")
+			if not bytes(f'-A FORWARD -i {args.bridge} -o {args.bridge} -j ACCEPT', 'UTF-8') in iptables:
+				SysCommand(f"sudo iptables -A FORWARD -i {args.bridge} -o {args.bridge} -j ACCEPT")
 
 	if args.boot == 'cdrom':
 		hdd_boot_priority = 2
@@ -459,7 +473,7 @@ if __name__ == '__main__':
 		hdd_boot_priority = 1
 		cdrom_boot_priority = len(harddrives)+1
 
-	qemu = 'qemu-system-x86_64'
+	qemu = 'sudo qemu-system-x86_64'
 	qemu += f' -cpu host'
 	qemu += f' -enable-kvm'
 	qemu += f' -machine q35,accel=kvm'
@@ -475,7 +489,13 @@ if __name__ == '__main__':
 	qemu += f' -device virtio-scsi-pci,bus=pcie.0,id=scsi{index+1}'
 	qemu += f'  -device scsi-cd,drive=cdrom0,bus=scsi{index+1}.0,bootindex={cdrom_boot_priority}'
 	qemu += f'   -drive file={ISO},media=cdrom,if=none,format=raw,cache=none,id=cdrom0'
+	#qemu += f' -device pcie-root-port,multifunction=on,bus=pcie.0,id=port9-0,addr=0x9,chassis=0'
+	qemu += f'  -device virtio-net-pci,mac=FE:00:00:00:00:00,id=network0,netdev=network0.0,status=on,bus=pcie.0'
+	qemu += f'   -netdev tap,ifname={args.interface_name},id=network0.0,script=no,downscript=no'
 
 	handle = SysCommandWorker(qemu, peak_output=True)
 	while handle.is_alive():
-		time.sleep(0.025)
+		if b'password for' in handle:
+			if not sudo_pw:
+				sudo_pw = getpass.getpass(f"Enter sudo password in order to boot the machine: ")
+			handle.write(bytes(sudo_pw, 'UTF-8'))
