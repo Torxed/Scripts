@@ -10,11 +10,15 @@ import glob
 from select import epoll, EPOLLIN, EPOLLHUP
 from typing import Union
 
+class RequirementError(BaseException):
+	pass
+
 """
  /* Code borrowed from archinstall:
     https://github.com/archlinux/archinstall/blob/ca52c796a55fd34cc1309f26bab86e15da722182/archinstall/lib/general.py#L153-L409
  */
 """
+
 def locate_binary(name):
 	for PATH in os.environ['PATH'].split(':'):
 		for root, folders, files in os.walk(PATH):
@@ -314,6 +318,13 @@ if __name__ == '__main__':
 	args, unknowns = parser.parse_known_args()
 
 	sudo_pw = None
+
+	if pathlib.Path('/usr/share/archiso/configs/releng').exists() is False:
+		raise RequirementError(f"archiso or '/usr/share/archiso/configs/releng' is missing.")
+
+	if pathlib.Path('/usr/share/ovmf/x64/OVMF_CODE.fd').exists() is False and args.bios is False:
+		raise RequirementError(f"archiso cannot boot in UEFI because OVMF is not installed.")
+
 	username = 'anton'
 	groupname = 'anton'
 	if args.rebuild is not False or args.internet is not None or args.interface_name is not None:
@@ -333,13 +344,14 @@ if __name__ == '__main__':
 				raise ValueError(f"Could not create harddrive {hdd}: {handle}")
 
 	if args.rebuild is not False:
-		try:
-			shutil.rmtree(str(builddir))
-		except PermissionError:
-			handle = SysCommandWorker(f"sudo rm -rf {builddir}")
-			while handle.is_alive():
-				if b'password for' in handle:
-					handle.write(bytes(sudo_pw, 'UTF-8'))
+		if builddir.exists():
+			try:
+				shutil.rmtree(str(builddir))
+			except PermissionError:
+				handle = SysCommandWorker(f"sudo rm -rf {builddir}")
+				while handle.is_alive():
+					if b'password for' in handle:
+						handle.write(bytes(sudo_pw, 'UTF-8'))
 
 		shutil.copytree('/usr/share/archiso/configs/releng', str(builddir), symlinks=True, ignore=None)
 
