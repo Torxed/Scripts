@@ -301,10 +301,8 @@ class SysCommand:
 
 if __name__ == '__main__':
 	from argparse import ArgumentParser
-	parser = ArgumentParser()
+	parser = ArgumentParser(description="A set of common parameters for the tooling", add_help=False)
 	
-	parser.add_argument("--repo", nargs="?", help="URL for repository", default="https://github.com/Torxed/archinstall.git")
-	parser.add_argument("--branch", nargs="?", help="Which branch of archinstall to use", default="master")
 	parser.add_argument("--build-dir", nargs="?", help="Path to where archiso will be built", default="~/archiso")
 	parser.add_argument("--rebuild", action="store_true", help="To rebuild ISO or not", default=False)
 	parser.add_argument("--bios", action="store_true", help="Disables UEFI and uses BIOS support instead", default=False)
@@ -313,9 +311,20 @@ if __name__ == '__main__':
 	parser.add_argument("--new-drives", action="store_true", help="This flag will wipe drives before boot.", default=False)
 	parser.add_argument("--harddrives", nargs="?", help="A list of harddrives and size (~/disk.qcow2:40G,~/disk2.qcow2:15G)", default="~/test.qcow2:15G,~/test_large.qcow2:70G")
 	parser.add_argument("--bridge", nargs="?", help="What bridge interface should be setup for internet access.", default='br0')
+	parser.add_argument("--bridge-mac", nargs="?", help="Force a MAC address on the bridge", default=None) # be:fa:41:b8:ef:ad
 	parser.add_argument("--internet", nargs="?", help="What internet interface should be used.", default=None)
 	parser.add_argument("--interface-name", nargs="?", help="What TAP interface name should be used.", default='tap0')
 	args, unknowns = parser.parse_known_args()
+
+	module_entrypoints = ArgumentParser(parents=[parser], description="A set of archinstall specific parameters", add_help=True)
+	module_entrypoints.add_argument("--repo", nargs="?", help="URL for repository", default="https://github.com/Torxed/archinstall.git")
+	module_entrypoints.add_argument("--branch", nargs="?", help="Which branch of archinstall to use", default="master")
+	module_entrypoints.add_argument("--conf", nargs="?", help="[optional] configure a `archinstall --conf` to autorun with", default=None)
+	module_entrypoints.add_argument("--disk-layout", nargs="?", help="[optional] configure a `archinstall --disk-layout` to autorun with", default=None)
+	module_entrypoints.add_argument("--creds", nargs="?", help="[optional] configure a `archinstall --creds` to autorun with", default=None)
+	module_entrypoints.add_argument("--silent", default=False, action="store_true", help="Sets archinstall to --silent mode skipping any GUI interaction (requires --conf, --creds and --disk-layout).")
+
+	args, unknown = module_entrypoints.parse_known_args(namespace=args)
 
 	sudo_pw = None
 
@@ -363,13 +372,31 @@ if __name__ == '__main__':
 			packages.write(f"python\n")
 			packages.write(f"python-setuptools\n")
 
+		autorun_string = "[[ -z $DISPLAY && $XDG_VTNR -eq 1 ]] &&"
+		autorun_string += ' sh -c "cd /root/archinstall-git;'
+		autorun_string += ' git config --global pull.rebase false;'
+		autorun_string += ' git pull;'
+		autorun_string += ' cp examples/guided.py ./;'
+		autorun_string += ' python guided.py'
+		# Append options to archinstall (aka guided.py)
+		if args.conf:
+			autorun_string += f' --conf {args.conf}'
+		if args.disk_layout:
+			autorun_string += f' --disk_layout {args.disk_layout}'
+		if args.creds:
+			autorun_string += f' --creds {args.creds}'
+		if args.silent:
+			autorun_string += f' --silent'
+
+		autorun_string += '";\n'
+
 		with open(f"{builddir}/airootfs/root/.zprofile", "a") as zprofile:
-			zprofile.write('[[ -z $DISPLAY && $XDG_VTNR -eq 1 ]] && sh -c "cd /root/archinstall-git; git config --global pull.rebase false; git pull; cp examples/guided.py ./; python guided.py"\n')
+			zprofile.write(autorun_string)
 
 		handle = SysCommandWorker(f"bash -c '(cd {builddir} && sudo mkarchiso -v -w work/ -o out/ ./)'", working_directory=str(builddir) , peak_output=True)
 		pw_prompted = False
 		while handle.is_alive():
-			if b'password for' and pw_prompted is False:
+			if b'password for' in handle and pw_prompted is False:
 				handle.write(bytes(sudo_pw, 'UTF-8'))
 				pw_prompted = True
 
@@ -387,7 +414,7 @@ if __name__ == '__main__':
 			handle = SysCommandWorker(f"sudo sysctl net.ipv4.ip_forward=1")
 			pw_prompted = False
 			while handle.is_alive():
-				if b'password for' and pw_prompted is False:
+				if b'password for' in handle and pw_prompted is False:
 					handle.write(bytes(sudo_pw, 'UTF-8'))
 					pw_prompted = True
 
@@ -397,22 +424,30 @@ if __name__ == '__main__':
 			handle = SysCommandWorker(f"sudo ip link add name {args.bridge} type bridge")
 			pw_prompted = False
 			while handle.is_alive():
-				if b'password for' and pw_prompted is False:
+				if b'password for' in handle and pw_prompted is False:
 					handle.write(bytes(sudo_pw, 'UTF-8'))
 					pw_prompted = True
+
+			if args.bridge_mac:
+				handle = SysCommandWorker(f"sudo ip link set dev {args.bridge} address {args.bridge_mac}")
+				pw_prompted = False
+				while handle.is_alive():
+					if b'password for' in handle and pw_prompted is False:
+						handle.write(bytes(sudo_pw, 'UTF-8'))
+						pw_prompted = True
 
 			if args.internet:
 				handle = SysCommandWorker(f"sudo ip link set dev {args.internet} master {args.bridge}")
 				pw_prompted = False
 				while handle.is_alive():
-					if b'password for' and pw_prompted is False:
+					if b'password for' in handle and pw_prompted is False:
 						handle.write(bytes(sudo_pw, 'UTF-8'))
 						pw_prompted = True
 
 			handle = SysCommandWorker(f"sudo ip link set dev {args.bridge} up")
 			pw_prompted = False
 			while handle.is_alive():
-				if b'password for' and pw_prompted is False:
+				if b'password for' in handle and pw_prompted is False:
 					handle.write(bytes(sudo_pw, 'UTF-8'))
 					pw_prompted = True
 
@@ -422,7 +457,7 @@ if __name__ == '__main__':
 			handle = SysCommandWorker(f"sudo ip tuntap add dev {args.interface_name} mode tap user {username} group {groupname}")
 			pw_prompted = False
 			while handle.is_alive():
-				if b'password for' and pw_prompted is False:
+				if b'password for' in handle and pw_prompted is False:
 					handle.write(bytes(sudo_pw, 'UTF-8'))
 					pw_prompted = True
 
@@ -431,7 +466,7 @@ if __name__ == '__main__':
 			handle = SysCommandWorker(f"sudo ip link set dev {args.interface_name} master {args.bridge}")
 			pw_prompted = False
 			while handle.is_alive():
-				if b'password for' and pw_prompted is False:
+				if b'password for' in handle and pw_prompted is False:
 					handle.write(bytes(sudo_pw, 'UTF-8'))
 					pw_prompted = True
 
@@ -439,7 +474,7 @@ if __name__ == '__main__':
 		handle = SysCommandWorker(f"sudo ip link set dev {args.interface_name} up")
 		pw_prompted = False
 		while handle.is_alive():
-			if b'password for' and pw_prompted is False:
+			if b'password for' in handle and pw_prompted is False:
 				handle.write(bytes(sudo_pw, 'UTF-8'))
 				pw_prompted = True
 
@@ -448,7 +483,7 @@ if __name__ == '__main__':
 		handle = SysCommandWorker(f"sudo dhclient -v {args.bridge}")
 		pw_prompted = False
 		while handle.is_alive():
-			if b'password for' and pw_prompted is False:
+			if b'password for' in handle and pw_prompted is False:
 				handle.write(bytes(sudo_pw, 'UTF-8'))
 				pw_prompted = True
 
@@ -458,25 +493,47 @@ if __name__ == '__main__':
 				handle = SysCommandWorker(f"sudo ip addr flush {args.internet}")
 				pw_prompted = False
 				while handle.is_alive():
-					if b'password for' and pw_prompted is False:
+					if b'password for' in handle and pw_prompted is False:
 						handle.write(bytes(sudo_pw, 'UTF-8'))
 						pw_prompted = True
 
 			iptables = SysCommandWorker(f"bash -c 'sudo iptables-save'")
 			pw_prompted = False
 			while iptables.is_alive():
-				if b'password for' and pw_prompted is False:
+				if b'password for' in iptables and pw_prompted is False:
 					iptables.write(bytes(sudo_pw, 'UTF-8'))
 					pw_prompted = True
 
+			print(f"Adding iptable rules if nessecary")
 			if not bytes(f'-A POSTROUTING -o {args.bridge} -j MASQUERADE', 'UTF-8') in iptables:
-				SysCommand(f"sudo iptables -t nat -A POSTROUTING -o {args.bridge} -j MASQUERADE")
+				handle = SysCommandWorker(f"bash -c 'sudo iptables -t nat -A POSTROUTING -o {args.bridge} -j MASQUERADE'")
+				pw_prompted = False
+				while handle.is_alive():
+					if b'password for' in handle and pw_prompted is False:
+						handle.write(bytes(sudo_pw, 'UTF-8'))
+						pw_prompted = True
 			if not bytes(f'-A FORWARD -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT', 'UTF-8') in iptables:
-				SysCommand(f"sudo iptables -A FORWARD -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT")
+				handle = SysCommandWorker(f"bash -c 'sudo iptables -A FORWARD -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT'")
+				pw_prompted = False
+				while handle.is_alive():
+					if b'password for' in handle and pw_prompted is False:
+						handle.write(bytes(sudo_pw, 'UTF-8'))
+						pw_prompted = True
 			if not bytes(f'-A FORWARD -i {args.interface_name} -o {args.bridge} -j ACCEPT', 'UTF-8') in iptables:
-				SysCommand(f"sudo iptables -A FORWARD -i {args.interface_name} -o {args.bridge} -j ACCEPT")
+				handle = SysCommandWorker(f"bash -c 'sudo iptables -A FORWARD -i {args.interface_name} -o {args.bridge} -j ACCEPT'")
+				pw_prompted = False
+				while handle.is_alive():
+					if b'password for' in handle and pw_prompted is False:
+						handle.write(bytes(sudo_pw, 'UTF-8'))
+						pw_prompted = True
 			if not bytes(f'-A FORWARD -i {args.bridge} -o {args.bridge} -j ACCEPT', 'UTF-8') in iptables:
-				SysCommand(f"sudo iptables -A FORWARD -i {args.bridge} -o {args.bridge} -j ACCEPT")
+				handle = SysCommandWorker(f"bash -c 'sudo iptables -A FORWARD -i {args.bridge} -o {args.bridge} -j ACCEPT'")
+				pw_prompted = False
+				while handle.is_alive():
+					if b'password for' in handle and pw_prompted is False:
+						handle.write(bytes(sudo_pw, 'UTF-8'))
+						pw_prompted = True
+			print("<- Done")
 
 	if args.boot == 'cdrom':
 		hdd_boot_priority = 2
