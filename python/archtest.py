@@ -314,6 +314,7 @@ if __name__ == '__main__':
 	parser.add_argument("--bridge-mac", nargs="?", help="Force a MAC address on the bridge", default=None) # be:fa:41:b8:ef:ad
 	parser.add_argument("--internet", nargs="?", help="What internet interface should be used.", default=None)
 	parser.add_argument("--interface-name", nargs="?", help="What TAP interface name should be used.", default='tap0')
+	parser.add_argument("--passthrough", nargs="?", help="Any /dev/disk/by-id/ to pass through?.", default='tap0')
 	args, unknowns = parser.parse_known_args()
 
 	module_entrypoints = ArgumentParser(parents=[parser], description="A set of archinstall specific parameters", add_help=True)
@@ -377,7 +378,7 @@ if __name__ == '__main__':
 		autorun_string += ' git config --global pull.rebase false;'
 		autorun_string += ' git pull;'
 		autorun_string += ' cp examples/guided.py ./;'
-		autorun_string += ' python guided.py'
+		autorun_string += ' time python guided.py'
 		# Append options to archinstall (aka guided.py)
 		if args.conf:
 			autorun_string += f' --conf {args.conf}'
@@ -552,15 +553,22 @@ if __name__ == '__main__':
 		qemu += f' -drive if=pflash,format=raw,readonly=on,file=/usr/share/ovmf/x64/OVMF_CODE.fd'
 		qemu += f' -drive if=pflash,format=raw,readonly=on,file=/usr/share/ovmf/x64/OVMF_VARS.fd'
 	for index, hdd in enumerate(harddrives):
-		qemu += f' -device virtio-scsi-pci,bus=pcie.0,id=scsi{index}'
-		qemu += f'  -device scsi-hd,drive=hdd{index},bus=scsi{index}.0,id=scsi{index}.0,bootindex={hdd_boot_priority+index}'
-		qemu += f'   -drive file={hdd},if=none,format=qcow2,discard=unmap,aio=native,cache=none,id=hdd{index}'
+		# qemu += f' -device virtio-scsi-pci,bus=pcie.0,id=scsi{index}'
+		# qemu += f'  -device scsi-hd,drive=hdd{index},bus=scsi{index}.0,id=scsi{index}.0,bootindex={hdd_boot_priority+index}'
+		# qemu += f'   -drive file={hdd},if=none,format=qcow2,discard=unmap,aio=native,cache=none,id=hdd{index}'
+		qemu += f' -device virtio-scsi-pci,bus=pcie.0,id=scsi{index},addr=0x{index+8}'
+		qemu += f'  -device scsi-hd,drive=libvirt-{index}-format,bus=scsi{index}.0,id=scsi{index}-0-0-0,channel=0,scsi-id=0,lun=0,device_id=drive-scsi0-0-0-0,bootindex={index+2},write-cache=on'
+		qemu += f'   -blockdev \'{{"driver":"file","filename":"{hdd}","aio":"threads","node-name":"libvirt-{index}-storage","cache":{{"direct":false,"no-flush":false}},"auto-read-only":true,"discard":"unmap"}}\''
+		qemu += f'   -blockdev \'{{"node-name":"libvirt-{index}-format","read-only":false,"discard":"unmap","cache":{{"direct":true,"no-flush":false}},"driver":"qcow2","file":"libvirt-{index}-storage","backing":null}}\''
 	qemu += f' -device virtio-scsi-pci,bus=pcie.0,id=scsi{index+1}'
 	qemu += f'  -device scsi-cd,drive=cdrom0,bus=scsi{index+1}.0,bootindex={cdrom_boot_priority}'
 	qemu += f'   -drive file={ISO},media=cdrom,if=none,format=raw,cache=none,id=cdrom0'
 	#qemu += f' -device pcie-root-port,multifunction=on,bus=pcie.0,id=port9-0,addr=0x9,chassis=0'
 	qemu += f'  -device virtio-net-pci,mac=FE:00:00:00:00:00,id=network0,netdev=network0.0,status=on,bus=pcie.0'
 	qemu += f'   -netdev tap,ifname={args.interface_name},id=network0.0,script=no,downscript=no'
+
+	if args.passthrough:
+		qemu += f' --drive format=raw,file={args.passthrough}'
 
 	handle = SysCommandWorker(qemu, peak_output=True)
 	while handle.is_alive():
