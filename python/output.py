@@ -108,3 +108,6 @@ def log(*args :str, **kwargs :Union[str, int, Dict[str, Union[str, int]]]) -> No
 		string = stylize_output(string, **kwargs)
 
 	Journald.log(string, level=int(str(kwargs.get('level', logging.INFO))))
+
+	sys.stdout.write(f"{string}\n")
+	sys.stdout.flush()
