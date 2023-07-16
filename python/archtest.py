@@ -314,7 +314,8 @@ if __name__ == '__main__':
 	parser.add_argument("--bridge-mac", nargs="?", help="Force a MAC address on the bridge", default=None) # be:fa:41:b8:ef:ad
 	parser.add_argument("--internet", nargs="?", help="What internet interface should be used.", default=None)
 	parser.add_argument("--interface-name", nargs="?", help="What TAP interface name should be used.", default='tap0')
-	parser.add_argument("--passthrough", nargs="?", help="Any /dev/disk/by-id/ to pass through?.", default='tap0')
+	parser.add_argument("--interface-mac", nargs="?", help="Force a MAC address on the bridge", default='FE:00:00:00:00:10') # be:fa:41:b8:ef:ad
+	parser.add_argument("--passthrough", nargs="?", help="Any /dev/disk/by-id/ to pass through?.", default=None, type=str)
 	args, unknowns = parser.parse_known_args()
 
 	module_entrypoints = ArgumentParser(parents=[parser], description="A set of archinstall specific parameters", add_help=True)
@@ -372,12 +373,14 @@ if __name__ == '__main__':
 			packages.write(f"git\n")
 			packages.write(f"python\n")
 			packages.write(f"python-setuptools\n")
+			packages.write(f"python-pyparted\n")
+			packages.write(f"python-simple-term-menu\n")
 
 		autorun_string = "[[ -z $DISPLAY && $XDG_VTNR -eq 1 ]] &&"
 		autorun_string += ' sh -c "cd /root/archinstall-git;'
 		autorun_string += ' git config --global pull.rebase false;'
 		autorun_string += ' git pull;'
-		autorun_string += ' cp examples/guided.py ./;'
+		autorun_string += ' cp archinstall/scripts/guided.py ./;'
 		autorun_string += ' time python guided.py'
 		# Append options to archinstall (aka guided.py)
 		if args.conf:
@@ -564,7 +567,7 @@ if __name__ == '__main__':
 	qemu += f'  -device scsi-cd,drive=cdrom0,bus=scsi{index+1}.0,bootindex={cdrom_boot_priority}'
 	qemu += f'   -drive file={ISO},media=cdrom,if=none,format=raw,cache=none,id=cdrom0'
 	#qemu += f' -device pcie-root-port,multifunction=on,bus=pcie.0,id=port9-0,addr=0x9,chassis=0'
-	qemu += f'  -device virtio-net-pci,mac=FE:00:00:00:00:00,id=network0,netdev=network0.0,status=on,bus=pcie.0'
+	qemu += f'  -device virtio-net-pci,mac={args.interface_mac},id=network0,netdev=network0.0,status=on,bus=pcie.0'
 	qemu += f'   -netdev tap,ifname={args.interface_name},id=network0.0,script=no,downscript=no'
 
 	if args.passthrough:
