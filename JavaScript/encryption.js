@@ -1,3 +1,16 @@
+const arrayBufferToString = (buffer) => {
+	return String.fromCharCode.apply(null, new Uint8Array(buffer));
+}
+
+const str2ab = (str) => {
+	const buf = new ArrayBuffer(str.length);
+	const bufView = new Uint8Array(buf);
+	for (let i = 0, strLen = str.length; i < strLen; i++) {
+		bufView[i] = str.charCodeAt(i);
+	}
+	return buf;
+}
+
 const x509 = {
 	default_key_type: "RSA-OAEP",
 	default_key_length: 2048,
@@ -59,6 +72,9 @@ const x509 = {
 				.replace(/[-]+END PUBLIC KEY[-]+/i, '')
 			const key_data = str2ab(window.atob(b64))
 
+			console.log(PEM_CERTIFICATE)
+			console.log(x509.default_key_type)
+			console.log(x509.default_hash)
 			window.crypto.subtle.importKey("spki", key_data, {name: x509.default_key_type, hash: x509.default_hash,}, true, ["encrypt"])
 			.then((public_key) => {
 				resolve(public_key)
