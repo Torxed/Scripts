@@ -201,3 +201,44 @@ x509.generate_keys()
 		})
 	})
 })
+
+// More realistic usage:
+let payload = {
+	"user": "willy"
+	"password": "nilly",
+}
+
+AES.generate_key()
+.then((aes_key) => {
+	AES.export_aes_key(aes_key)
+	.then((raw_key) => {
+		AES.import_aes_key(raw_key)
+		.then((aes_key) => {
+			AES.encryption(JSON.stringify(payload), aes_key)
+			.then((encrypted_payload) => {
+				x509.generate_keys()
+				.then((keys) => {
+					x509.export_pubkey_to_pem(keys)
+					.then((PEM_CERTIFICATE) => {
+						x509.import_PEM(PEM_CERTIFICATE)
+						.then((public_key) => {
+							x509.encrypt(JSON.stringify({"aes_key" : btoa(arrayBufferToString(raw_key))}), public_key)
+							.then((encrypted_aes_key) => {
+								console.log({
+									"type": "encrypted_payload",
+									"payload": {
+										"iv": encrypted_payload.iv,
+										"tag": encrypted_payload.tag,
+										"key": encrypted_aes_key,
+										"data": encrypted_payload.encrypted_data
+									}
+								})
+								
+							})
+						})
+					})
+				})
+			})
+		})
+	})
+})
