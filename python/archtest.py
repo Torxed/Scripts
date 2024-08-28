@@ -517,15 +517,15 @@ if __name__ == '__main__':
 								pw_prompted = True
 				break
 
-			for root, folders, files in os.walk('/usr/share/archiso/configs/releng'):
-				for folder in folders:
-					shutil.copytree(f"{root}/{folder}", f"{builddir}/{folder}", symlinks=True, ignore=None)
-				for file in files:
-					shutil.copy2(f"{root}/{file}", f"{builddir}/{file}")
-				break
+		for root, folders, files in os.walk('/usr/share/archiso/configs/releng'):
+			for folder in folders:
+				shutil.copytree(f"{root}/{folder}", f"{builddir}/{folder}", symlinks=True, ignore=None)
+			for file in files:
+				shutil.copy2(f"{root}/{file}", f"{builddir}/{file}")
+			break
 
-			with (builddir / 'pacman_offline_cache.conf').open('w') as fh:
-				fh.write(f"""[options]
+		with (builddir / 'pacman_offline_cache.conf').open('w') as fh:
+			fh.write(f"""[options]
 HoldPkg     = pacman glibc
 Architecture = auto
 
@@ -543,9 +543,9 @@ SigLevel    = Optional
 """)
 
 
-			if args.offline:
-				with (builddir / "airootfs/etc/pacman.conf").open('w') as fh:
-					fh.write(f"""[options]
+		if args.offline:
+			with (builddir / "airootfs/etc/pacman.conf").open('w') as fh:
+				fh.write(f"""[options]
 HoldPkg     = pacman glibc
 Architecture = auto
 
@@ -565,102 +565,102 @@ LocalFileSigLevel = Optional
 Server = file:///root/packages/
 """)
 
-			(builddir / 'packages').mkdir(parents=True, exist_ok=True)
-			(builddir / 'packagedb').mkdir(parents=True, exist_ok=True)
+		(builddir / 'packages').mkdir(parents=True, exist_ok=True)
+		(builddir / 'packagedb').mkdir(parents=True, exist_ok=True)
 
-			if (handle := SysCommand(f"git clone {args.repo} -b {args.branch} {builddir}/airootfs/root/archinstall-git")).exit_code != 0:
-				raise SysCallError(f"Could not clone repository: {handle}")
+		if (handle := SysCommand(f"git clone {args.repo} -b {args.branch} {builddir}/airootfs/root/archinstall-git")).exit_code != 0:
+			raise SysCallError(f"Could not clone repository: {handle}")
 
-			with open(f"{builddir}/packages.x86_64", "a") as packages:
-				packages.write(f"git\n")
-				packages.write(f"python\n")
-				packages.write(f"python-setuptools\n")
-				packages.write(f"python-pyparted\n")
-				packages.write(f"python-simple-term-menu\n")
+		with open(f"{builddir}/packages.x86_64", "a") as packages:
+			packages.write(f"git\n")
+			packages.write(f"python\n")
+			packages.write(f"python-setuptools\n")
+			packages.write(f"python-pyparted\n")
+			packages.write(f"python-simple-term-menu\n")
 
-			required_build_packages = []
-			with (builddir / 'packages.x86_64').open('r') as fh:
-				for line in fh:
-					if (clean_line := line.strip()):
-						required_build_packages.append(clean_line)
+		required_build_packages = []
+		with (builddir / 'packages.x86_64').open('r') as fh:
+			for line in fh:
+				if (clean_line := line.strip()):
+					required_build_packages.append(clean_line)
 
-			if args.offline is False:
-				handle = SysCommandWorker(f"bash -c 'sudo pacman --noconfirm --cachedir \"{builddir / 'packages'}\" --dbpath \"{builddir / 'packagedb'}\" -Syw {' '.join(required_build_packages)}'", peek_output=True)
-				pw_prompted = False
-				while handle.is_alive():
-					if b'password for' in handle and pw_prompted is False:
-						handle.write(bytes(sudo_pw, 'UTF-8'))
-						pw_prompted = True
-
-			else:
-				# This is needed because of mkarchiso's use of pacman -Q --sysroot
-				handle = SysCommandWorker(f"sudo ln -s \"{builddir / 'packages'}\" /root/", peek_output=True)
-				pw_prompted = False
-				while handle.is_alive():
-					if b'password for' in handle and pw_prompted is False:
-						handle.write(bytes(sudo_pw, 'UTF-8'))
-						pw_prompted = True
-
-				handle = SysCommandWorker(f"sudo ln -s \"{builddir / 'packagedb'}\" /root/", peek_output=True)
-				pw_prompted = False
-				while handle.is_alive():
-					if b'password for' in handle and pw_prompted is False:
-						handle.write(bytes(sudo_pw, 'UTF-8'))
-						pw_prompted = True
-
-			handle = SysCommandWorker(f'bash -c "sudo repo-add --nocolor --new {builddir / "packages"}/mkarchiso.db.tar.gz {builddir / "packages"}/{{*.pkg.tar.xz,*.pkg.tar.zst}}"', peek_output=True)
+		if args.offline is False:
+			handle = SysCommandWorker(f"bash -c 'sudo pacman --noconfirm --cachedir \"{builddir / 'packages'}\" --dbpath \"{builddir / 'packagedb'}\" -Syw {' '.join(required_build_packages)}'", peek_output=True)
 			pw_prompted = False
 			while handle.is_alive():
 				if b'password for' in handle and pw_prompted is False:
 					handle.write(bytes(sudo_pw, 'UTF-8'))
 					pw_prompted = True
 
-			if args.offline:
-				shutil.copytree(f"{builddir / 'packagedb'}", f"{builddir}/airootfs/root/packagedb")
-				shutil.copytree(f"{builddir / 'packages'}", f"{builddir}/airootfs/root/packages")
-
-			autorun_string = 'echo -n "pacman-init: "\n'
-			autorun_string = 'systemctl show --no-pager -p SubState --value pacman-init.service\n'
-			autorun_string += 'echo ""\n'
-			autorun_string += 'echo -n "archlinux-keyring-wkd-sync.timer: "\n'
-			autorun_string += 'systemctl show --property=ActiveEnterTimestamp --no-pager archlinux-keyring-wkd-sync.timer\n'
-			autorun_string += 'echo ""\n'
-			autorun_string += 'echo -n "archlinux-keyring-wkd-sync.service: "\n'
-			autorun_string += 'systemctl show --no-pager -p SubState --value archlinux-keyring-wkd-sync.service\n'
-			autorun_string += 'echo ""\n'
-			autorun_string += "[[ -z $DISPLAY && $XDG_VTNR -eq 1 ]] &&"
-			autorun_string += ' sh -c "cd /root/archinstall-git;'
-			autorun_string += ' git config --global pull.rebase false;'
-			autorun_string += ' git pull;'
-			autorun_string += ' cp archinstall/scripts/guided.py ./;'
-			autorun_string += ' time python guided.py --conf https://hvornum.se/user_configuration.json --creds https://hvornum.se/user_credentials.json --silent'
-			# Append options to archinstall (aka guided.py)
-			if args.conf:
-				autorun_string += f' --conf {args.conf}'
-			if args.disk_layout:
-				autorun_string += f' --disk_layout {args.disk_layout}'
-			if args.creds:
-				autorun_string += f' --creds {args.creds}'
-			if args.silent:
-				autorun_string += f' --silent'
-
-			autorun_string += '";\n'
-
-			with open(f"{builddir}/airootfs/root/.zprofile", "a") as zprofile:
-				zprofile.write(autorun_string)
-
-			if args.offline:
-				handle = SysCommandWorker(f"bash -c '(cd {builddir} && sudo mkarchiso -C {builddir / 'pacman_offline_cache.conf'} -v -w work/ -o out/ ./)'", working_directory=str(builddir) , peek_output=True)
-			else:
-				handle = SysCommandWorker(f"bash -c '(cd {builddir} && sudo mkarchiso -v -w work/ -o out/ ./)'", working_directory=str(builddir) , peek_output=True)
+		else:
+			# This is needed because of mkarchiso's use of pacman -Q --sysroot
+			handle = SysCommandWorker(f"sudo ln -s \"{builddir / 'packages'}\" /root/", peek_output=True)
 			pw_prompted = False
 			while handle.is_alive():
 				if b'password for' in handle and pw_prompted is False:
 					handle.write(bytes(sudo_pw, 'UTF-8'))
 					pw_prompted = True
 
-			if not handle.exit_code == 0:
-				raise SysCallError(f"Could not build ISO: {handle}", handle.exit_code)
+			handle = SysCommandWorker(f"sudo ln -s \"{builddir / 'packagedb'}\" /root/", peek_output=True)
+			pw_prompted = False
+			while handle.is_alive():
+				if b'password for' in handle and pw_prompted is False:
+					handle.write(bytes(sudo_pw, 'UTF-8'))
+					pw_prompted = True
+
+		handle = SysCommandWorker(f'bash -c "sudo repo-add --nocolor --new {builddir / "packages"}/mkarchiso.db.tar.gz {builddir / "packages"}/{{*.pkg.tar.xz,*.pkg.tar.zst}}"', peek_output=True)
+		pw_prompted = False
+		while handle.is_alive():
+			if b'password for' in handle and pw_prompted is False:
+				handle.write(bytes(sudo_pw, 'UTF-8'))
+				pw_prompted = True
+
+		if args.offline:
+			shutil.copytree(f"{builddir / 'packagedb'}", f"{builddir}/airootfs/root/packagedb")
+			shutil.copytree(f"{builddir / 'packages'}", f"{builddir}/airootfs/root/packages")
+
+		autorun_string = 'echo -n "pacman-init: "\n'
+		autorun_string = 'systemctl show --no-pager -p SubState --value pacman-init.service\n'
+		autorun_string += 'echo ""\n'
+		autorun_string += 'echo -n "archlinux-keyring-wkd-sync.timer: "\n'
+		autorun_string += 'systemctl show --property=ActiveEnterTimestamp --no-pager archlinux-keyring-wkd-sync.timer\n'
+		autorun_string += 'echo ""\n'
+		autorun_string += 'echo -n "archlinux-keyring-wkd-sync.service: "\n'
+		autorun_string += 'systemctl show --no-pager -p SubState --value archlinux-keyring-wkd-sync.service\n'
+		autorun_string += 'echo ""\n'
+		autorun_string += "[[ -z $DISPLAY && $XDG_VTNR -eq 1 ]] &&"
+		autorun_string += ' sh -c "cd /root/archinstall-git;'
+		autorun_string += ' git config --global pull.rebase false;'
+		autorun_string += ' git pull;'
+		autorun_string += ' cp archinstall/scripts/guided.py ./;'
+		autorun_string += ' time python guided.py --conf https://hvornum.se/user_configuration.json --creds https://hvornum.se/user_credentials.json --silent'
+		# Append options to archinstall (aka guided.py)
+		if args.conf:
+			autorun_string += f' --conf {args.conf}'
+		if args.disk_layout:
+			autorun_string += f' --disk_layout {args.disk_layout}'
+		if args.creds:
+			autorun_string += f' --creds {args.creds}'
+		if args.silent:
+			autorun_string += f' --silent'
+
+		autorun_string += '";\n'
+
+		with open(f"{builddir}/airootfs/root/.zprofile", "a") as zprofile:
+			zprofile.write(autorun_string)
+
+		if args.offline:
+			handle = SysCommandWorker(f"bash -c '(cd {builddir} && sudo mkarchiso -C {builddir / 'pacman_offline_cache.conf'} -v -w work/ -o out/ ./)'", working_directory=str(builddir) , peek_output=True)
+		else:
+			handle = SysCommandWorker(f"bash -c '(cd {builddir} && sudo mkarchiso -v -w work/ -o out/ ./)'", working_directory=str(builddir) , peek_output=True)
+		pw_prompted = False
+		while handle.is_alive():
+			if b'password for' in handle and pw_prompted is False:
+				handle.write(bytes(sudo_pw, 'UTF-8'))
+				pw_prompted = True
+
+		if not handle.exit_code == 0:
+			raise SysCallError(f"Could not build ISO: {handle}", handle.exit_code)
 
 		ISO = glob.glob(f"{builddir}/out/archlinux-{time.strftime('%Y.%m.%d')}*.iso")[0]
 	elif args.iso:
