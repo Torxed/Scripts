@@ -8,7 +8,7 @@ for index, arg in enumerate(sys.argv[1:]):
 	if arg.startswith('--'):
 		if '=' in arg:
 			key, val = [x.strip() for x in arg[2:].split('=', 1)]
-		elif index+2 >= len(sys.argv[1:]) and sys.argv[1 + index + 1].startswith('--') is False:
+		elif index+2 <= len(sys.argv[1:]) and sys.argv[1 + index + 1].startswith('--') is False:
 			key, val = (arg.lstrip('-'), sys.argv[1 + index + 1])
 			skips.append(index)
 		else:
