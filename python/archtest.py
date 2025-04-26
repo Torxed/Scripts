@@ -416,6 +416,7 @@ if __name__ == '__main__':
 	parser = ArgumentParser(description="A set of common parameters for the tooling", add_help=False)
 	
 	parser.add_argument("--iso", nargs="?", help="Defines which ISO to run (skips build all together)", default=None, type=pathlib.Path)
+	parser.add_argument("--vfio", nargs="?", help="Adds a second -drive file=filepath,media=cdrom to vfio drivers", default=None, type=pathlib.Path)
 	parser.add_argument("--build-dir", nargs="?", help="Path to where archiso will be built", default="~/archiso")
 	parser.add_argument("--rebuild", action="store_true", help="To rebuild ISO or not", default=False)
 	parser.add_argument("--rebuild-cache", action="store_true", help="When --rebuild, also clear the package cache", default=False)
@@ -438,7 +439,7 @@ if __name__ == '__main__':
 	args, unknowns = parser.parse_known_args()
 
 	module_entrypoints = ArgumentParser(parents=[parser], description="A set of archinstall specific parameters", add_help=True)
-	module_entrypoints.add_argument("--repo", nargs="?", help="URL for repository", default="https://github.com/Torxed/archinstall.git")
+	module_entrypoints.add_argument("--repo", nargs="?", help="URL for repository", default="https://github.com/archlinux/archinstall.git")
 	module_entrypoints.add_argument("--branch", nargs="?", help="Which branch of archinstall to use", default="master")
 	module_entrypoints.add_argument("--conf", nargs="?", help="[optional] configure a `archinstall --conf` to autorun with", default=None)
 	module_entrypoints.add_argument("--disk-layout", nargs="?", help="[optional] configure a `archinstall --disk-layout` to autorun with", default=None)
@@ -452,7 +453,7 @@ if __name__ == '__main__':
 	if pathlib.Path('/usr/share/archiso/configs/releng').exists() is False:
 		raise RequirementError(f"archiso or '/usr/share/archiso/configs/releng' is missing.")
 
-	if pathlib.Path('/usr/share/ovmf/x64/OVMF_CODE.fd').exists() is False and args.bios is False:
+	if pathlib.Path('/usr/share/ovmf/x64/OVMF_CODE.4m.fd').exists() is False and args.bios is False:
 		raise RequirementError(f"archiso cannot boot in UEFI because OVMF is not installed.")
 
 	username = 'anton'
@@ -820,16 +821,26 @@ Server = file:///root/packages/
 		hdd_boot_priority = 1
 		cdrom_boot_priority = len(harddrives)+2
 
+	os.mkdir(f"{builddir}")
+
+	shutil.copy2('/usr/share/ovmf/x64/OVMF_CODE.secboot.4m.fd', f"{builddir}/OVMF_CODE.secboot.4m.fd")
+	shutil.copy2('/usr/share/ovmf/x64/OVMF_VARS.4m.fd', f"{builddir}/OVMF_VARS.4m.fd")
+
 	qemu = 'sudo qemu-system-x86_64'
 	qemu += f' -cpu host'
 	qemu += f' -enable-kvm'
 	qemu += f' -machine q35,accel=kvm'
-	qemu += f' -vga virtio'
-	qemu += f' -device intel-iommu'
+	qemu += f' -object rng-random,filename=/dev/urandom,id=rng0'
+	qemu += f' -device virtio-rng-pci,rng=rng0'
+	qemu += f' -global driver=cfi.pflash01,property=secure,value=on'
+	qemu += f' -smp 4,sockets=1,dies=1,cores=4,threads=1'
+	# qemu += f' -vga vga'
+	qemu += f' -device VGA,edid=on,xres=2560,yres=1440'
+	qemu += f' -device intel-iommu,device-iotlb=on,caching-mode=on'
 	qemu += f' -m {args.memory}'
 	if args.bios is False:
-		qemu += f' -drive if=pflash,format=raw,readonly=on,file=/usr/share/ovmf/x64/OVMF_CODE.fd'
-		qemu += f' -drive if=pflash,format=raw,readonly=on,file=/usr/share/ovmf/x64/OVMF_VARS.fd'
+		qemu += f' -drive if=pflash,format=raw,readonly=on,file={builddir}/OVMF_CODE.secboot.4m.fd'
+		qemu += f' -drive if=pflash,format=raw,file={builddir}/OVMF_VARS.4m.fd'
 	for index, hdd in enumerate(harddrives):
 		# qemu += f' -device virtio-scsi-pci,bus=pcie.0,id=scsi{index}'
 		# qemu += f'  -device scsi-hd,drive=hdd{index},bus=scsi{index}.0,id=scsi{index}.0,bootindex={hdd_boot_priority+index}'
@@ -841,10 +852,16 @@ Server = file:///root/packages/
 	qemu += f' -device virtio-scsi-pci,bus=pcie.0,id=scsi{index+1}'
 	qemu += f'  -device scsi-cd,drive=cdrom0,bus=scsi{index+1}.0,bootindex={cdrom_boot_priority}'
 	qemu += f'   -drive file={ISO},media=cdrom,if=none,format=raw,cache=none,id=cdrom0'
+
+	if args.vfio:
+		qemu += f'  -drive file={args.vfio},index=2,media=cdrom'
 	#qemu += f' -device pcie-root-port,multifunction=on,bus=pcie.0,id=port9-0,addr=0x9,chassis=0'
 	if args.interface_name:
 		qemu += f'  -device virtio-net-pci,mac={args.interface_mac},id=network0,netdev=network0.0,status=on,bus=pcie.0'
 		qemu += f'   -netdev tap,ifname={args.interface_name},id=network0.0,script=no,downscript=no'
+
+	# qemu += f' -tpmdev passthrough,id=tpm0,path=/dev/tpm0,cancel-path=/tmp/foo-cancel'
+	# qemu += f'   -device tpm-tis,tpmdev=tpm0'
 
 	if args.passthrough:
 		qemu += f' --drive format=raw,file={args.passthrough}'
